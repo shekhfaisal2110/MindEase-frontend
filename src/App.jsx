@@ -15,10 +15,13 @@ import DailyTracker from './pages/DailyTracker';
 import HourlyEmotionTracker from './pages/HourlyEmotionTracker';
 import ReactResponse from './pages/ReactResponse';
 import Ikigai from './pages/Ikigai';
+import Analytics from './pages/Analytics';
+import Chat from './pages/Chat';
+import AdminChat from './pages/AdminChat';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -36,6 +39,9 @@ function App() {
           <Route path="/hourly-emotion" element={<PrivateRoute><HourlyEmotionTracker /></PrivateRoute>} />
           <Route path="/react-response" element={<PrivateRoute><ReactResponse /></PrivateRoute>} />
           <Route path="/ikigai" element={<PrivateRoute><Ikigai /></PrivateRoute>} />
+          <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
+          <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} />
+          <Route path="/admin-chat" element={<PrivateRoute><AdminChat /></PrivateRoute>} />
           
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>

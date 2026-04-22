@@ -10,7 +10,19 @@ const Ikigai = () => {
   const [saving, setSaving] = useState(false);
   const [newItem, setNewItem] = useState({ category: 'love', text: '' });
 
-  useEffect(() => { fetchIkigai(); }, []);
+  // ✅ Global storage: page view recorded once per day via backend
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'ikigai' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
+    fetchIkigai();
+  }, []);
 
   const fetchIkigai = async () => {
     try {
@@ -20,7 +32,7 @@ const Ikigai = () => {
     finally { setLoading(false); }
   };
 
-  const addItem = (category) => {
+  const addItem = async (category) => {
     const textToAdd = newItem.category === category ? newItem.text.trim() : "";
     if (!textToAdd) return;
 
@@ -33,6 +45,14 @@ const Ikigai = () => {
     updated[category] = [...updated[category], textToAdd];
     setIkigai(updated);
     setNewItem({ category: 'love', text: '' });
+
+    // Add activity points for this item (+10)
+    try {
+      await api.post('/activity/add', { actionType: 'ikigaiItem', points: 10 });
+      console.log(`✅ +10 points for adding to ${category}: ${textToAdd}`);
+    } catch (err) {
+      console.error('Failed to add activity points:', err);
+    }
   };
 
   const removeItem = (category, index) => {

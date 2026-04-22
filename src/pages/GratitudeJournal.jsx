@@ -10,7 +10,17 @@ const GratitudeJournal = () => {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // ✅ Global storage: page view recorded once per day via backend
   useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'gratitude' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
     fetchEntries();
   }, []);
 
@@ -29,6 +39,10 @@ const GratitudeJournal = () => {
       const res = await api.post('/gratitude', { people, things, situations, notes });
       setEntries([res.data, ...entries]);
       setPeople(''); setThings(''); setSituations(''); setNotes('');
+
+      // Add activity points for this entry (+2)
+      await api.post('/activity/add', { actionType: 'gratitude', points: 2 });
+      console.log('✅ +2 points for gratitude entry');
     } catch (err) { console.error(err); }
   };
 

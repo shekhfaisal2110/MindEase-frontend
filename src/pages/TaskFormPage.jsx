@@ -25,6 +25,15 @@ const TaskForm = ({ onTaskAdded }) => {
       const res = await api.post('/tasks', values);
       if (onTaskAdded) onTaskAdded(res.data);
       resetForm(); // Clear form after success
+
+      // ✅ Global storage: activity points added directly to backend
+      try {
+        await api.post('/activity/add', { actionType: 'dailyTask', points: 3 });
+        console.log('✅ +3 points for creating a new task');
+      } catch (activityErr) {
+        console.error('Failed to add activity points:', activityErr);
+      }
+
       return res.data;
     } catch (err) {
       console.error("Task creation failed", err);
@@ -86,10 +95,6 @@ const TaskForm = ({ onTaskAdded }) => {
         {/* Formik Wrapper */}
         <div className="p-6 md:p-10">
           <div className="task-form-custom-styles">
-            {/* Note: Ensure your FormikForm component renders these fields 
-                with clean Tailwind classes like: 
-                rounded-xl, bg-slate-50, focus:ring-2 focus:ring-indigo-100
-            */}
             <FormikForm
               initialValues={initialValues}
               validationSchema={validationSchema}

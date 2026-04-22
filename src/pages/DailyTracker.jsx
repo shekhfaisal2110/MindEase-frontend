@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 
@@ -15,8 +16,23 @@ const DailyTracker = () => {
   const [viewMode, setViewMode] = useState('today');
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [confettiTriggered, setConfettiTriggered] = useState(false);
 
-  useEffect(() => { fetchToday(); fetchAllTracks(); }, []);
+  // Record page view once per day
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'dailytracker' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
+    fetchToday();
+    fetchAllTracks();
+  }, []);
+
   useEffect(() => { if (viewMode === 'today') fetchDateTrack(selectedDate); }, [selectedDate]);
 
   const fetchToday = async () => {
@@ -43,8 +59,74 @@ const DailyTracker = () => {
         exerciseCompleted: false, readingCompleted: false, journalingCompleted: false, 
         affirmationText: '', journalingText: '', notes: '' 
       });
+      setConfettiTriggered(false); // reset confetti flag for the new date
     } catch(err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const triggerConfetti = () => {
+    // Main burst from center
+    confetti({
+      particleCount: 300,
+      spread: 100,
+      origin: { y: 0.6 },
+      startVelocity: 25,
+      colors: ["#2563eb", "#3b82f6", "#60a5fa", "#1d4ed8", "#f59e0b", "#10b981", "#ef4444"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    // Left corner burst
+    confetti({
+      particleCount: 150,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
+    });
+    // Right corner burst
+    confetti({
+      particleCount: 150,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#f97316", "#84cc16", "#a855f7"],
+    });
+  };
+
+  const handleCheckboxChange = async (key, checked) => {
+    const wasCompleted = track[key];
+    const taskName = activities.find(a => a.key === key)?.label || key;
+    const shouldAddPoints = !wasCompleted && checked;
+
+    // Update local state optimistically
+    setTrack(prev => ({ ...prev, [key]: checked }));
+
+    // Check if after this change all tasks are completed
+    const newCompletedCount = activities.filter(a => 
+      (a.key === key ? checked : track[a.key])
+    ).length;
+    const allTasksCompleted = newCompletedCount === activities.length;
+
+    if (allTasksCompleted && !confettiTriggered) {
+      triggerConfetti();
+      setConfettiTriggered(true);
+    }
+
+    if (shouldAddPoints) {
+      try {
+        const checkRes = await api.post('/daily-activity/routine-item', { itemName: taskName });
+        if (!checkRes.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'dailyTask', points: 3 });
+          console.log(`✅ +3 points for completing: ${taskName}`);
+        } else {
+          console.log(`⏩ Points already awarded today for: ${taskName}`);
+        }
+      } catch (err) {
+        console.error('Failed to add activity points:', err);
+      }
+    }
   };
 
   const saveTracking = async () => {
@@ -52,6 +134,7 @@ const DailyTracker = () => {
     try {
       await api.put(`/dailytrack/date/${selectedDate}`, track);
       fetchAllTracks();
+      alert('Progress saved successfully!');
     } catch(err) { alert('Failed to save'); }
     finally { setSaving(false); }
   };
@@ -173,7 +256,7 @@ const DailyTracker = () => {
                       <input 
                         type="checkbox" 
                         checked={track[act.key]} 
-                        onChange={e => setTrack({...track, [act.key]: e.target.checked})} 
+                        onChange={e => handleCheckboxChange(act.key, e.target.checked)} 
                         className="peer sr-only" 
                       />
                       <div className="w-6 h-6 border-2 border-slate-200 rounded-lg transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center">

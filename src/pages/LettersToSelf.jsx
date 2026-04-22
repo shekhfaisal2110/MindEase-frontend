@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 
@@ -7,7 +8,17 @@ const LettersToSelf = () => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Global storage: page view recorded once per day via backend
   useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'letters' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
     fetchLetters();
   }, []);
 
@@ -15,8 +26,39 @@ const LettersToSelf = () => {
     try {
       const res = await api.get('/letters');
       setLetters(res.data);
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const triggerConfetti = () => {
+    // Main burst from center
+    confetti({
+      particleCount: 300,
+      spread: 100,
+      origin: { y: 0.6 },
+      startVelocity: 25,
+      colors: ["#2563eb", "#3b82f6", "#60a5fa", "#1d4ed8", "#f59e0b", "#10b981", "#ef4444"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    // Left corner burst
+    confetti({
+      particleCount: 150,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
+    });
+    // Right corner burst
+    confetti({
+      particleCount: 150,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#f97316", "#84cc16", "#a855f7"],
+    });
   };
 
   const addLetter = async (e) => {
@@ -26,14 +68,21 @@ const LettersToSelf = () => {
       const res = await api.post('/letters', { content });
       setLetters([res.data, ...letters]);
       setContent('');
-    } catch (err) { console.error(err) }
+
+      // Add activity points for this letter (+20)
+      await api.post('/activity/add', { actionType: 'letterToSelf', points: 20 });
+      console.log('✅ +20 points for writing a letter to yourself');
+
+      // 🎉 Celebrate with confetti
+      triggerConfetti();
+    } catch (err) { console.error(err); }
   };
 
   const markRead = async (id) => {
     try {
       await api.put(`/letters/read/${id}`);
       setLetters(letters.map(l => l._id === id ? { ...l, isRead: true } : l));
-    } catch (err) { console.error(err) }
+    } catch (err) { console.error(err); }
   };
 
   const deleteLetter = async (id) => {
@@ -41,7 +90,7 @@ const LettersToSelf = () => {
     try {
       await api.delete(`/letters/${id}`);
       setLetters(letters.filter(l => l._id !== id));
-    } catch (err) { console.error(err) }
+    } catch (err) { console.error(err); }
   };
 
   return (

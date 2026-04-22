@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -32,6 +33,41 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  // Logo click confetti celebration
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    // Trigger a celebratory confetti burst
+    confetti({
+      particleCount: 200,
+      spread: 70,
+      origin: { y: 0.6 },
+      startVelocity: 20,
+      colors: ["#2563eb", "#3b82f6", "#60a5fa", "#1d4ed8", "#f59e0b", "#10b981", "#ef4444"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    // Also burst from left corner
+    confetti({
+      particleCount: 100,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 25,
+      colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
+    });
+    // And from right corner
+    confetti({
+      particleCount: 100,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 25,
+      colors: ["#f97316", "#84cc16", "#a855f7"],
+    });
+    // Navigate to dashboard after a tiny delay (so confetti starts first)
+    setTimeout(() => navigate('/dashboard'), 50);
+  };
+
   const navLinks = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/hourly-emotion", label: "Hourly Emotions" },
@@ -43,7 +79,15 @@ const Navbar = () => {
     { to: "/dailytracker", label: "Daily Tracker" },
     { to: "/react-response", label: "React vs Response" },
     { to: "/ikigai", label: "Ikigai" },
+    { to: "/chat", label: "Support" },
+    { to: "/analytics", label: "Analytics" },
   ];
+
+  // Admin only link
+  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  if (isAdmin) {
+    navLinks.push({ to: "/admin-chat", label: "Admin Chat" });
+  }
 
   return (
     <>
@@ -53,12 +97,16 @@ const Navbar = () => {
           : 'bg-indigo-600 py-4'
       } text-white`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
-          <Link to="/dashboard" className="flex items-center space-x-3 group">
+          {/* Logo with click handler */}
+          <button 
+            onClick={handleLogoClick}
+            className="flex items-center space-x-3 group focus:outline-none"
+          >
             <div className="bg-white p-1.5 rounded-xl transition-transform group-hover:scale-110 shadow-lg">
               <span className="text-xl">🌿</span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight">Mind<span className="text-indigo-200">Ease</span></h1>
-          </Link>
+          </button>
 
           <div className="flex items-center space-x-4">
             <div className="hidden sm:flex flex-col items-end mr-2">

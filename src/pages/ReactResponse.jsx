@@ -1,27 +1,44 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 
 const ReactResponse = () => {
   const [entries, setEntries] = useState([]);
   const [monthlyData, setMonthlyData] = useState({});
-  const [viewMode, setViewMode] = useState('log'); 
+  const [viewMode, setViewMode] = useState('log');
   const [form, setForm] = useState({ choice: 'response', situation: '', outcome: '' });
   const [loading, setLoading] = useState(true);
 
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
 
+  // Global storage: page view recorded once per day via backend
   useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'reactResponse' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
     fetchEntries();
     fetchMonthlySummary(currentYear, currentMonth);
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      fetchMonthlySummary(currentYear, currentMonth);
+    }
   }, [currentYear, currentMonth]);
 
   const fetchEntries = async () => {
     try {
       const res = await api.get('/react-response');
       setEntries(res.data);
-    } catch (err) { console.error(err); } 
+    } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
@@ -32,6 +49,69 @@ const ReactResponse = () => {
     } catch (err) { console.error(err); }
   };
 
+  // 🔥 React animation – fiery, explosive
+  const triggerReactConfetti = () => {
+    // Main burst from center
+    confetti({
+      particleCount: 300,
+      spread: 120,
+      origin: { y: 0.6 },
+      startVelocity: 30,
+      colors: ["#ef4444", "#f97316", "#f59e0b", "#dc2626", "#ea580c"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    // Left corner burst
+    confetti({
+      particleCount: 180,
+      angle: 60,
+      spread: 60,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 35,
+      colors: ["#ef4444", "#f97316", "#f59e0b"],
+    });
+    // Right corner burst
+    confetti({
+      particleCount: 180,
+      angle: 120,
+      spread: 60,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 35,
+      colors: ["#ef4444", "#f97316", "#f59e0b"],
+    });
+  };
+
+  // 🌿 Response animation – calm, soothing
+  const triggerResponseConfetti = () => {
+    // Main burst from center – softer, slower
+    confetti({
+      particleCount: 250,
+      spread: 80,
+      origin: { y: 0.6 },
+      startVelocity: 20,
+      colors: ["#10b981", "#3b82f6", "#8b5cf6", "#34d399", "#60a5fa"],
+      decay: 0.9,
+      gravity: 0.8,
+    });
+    // Gentle side bursts
+    confetti({
+      particleCount: 120,
+      angle: 60,
+      spread: 45,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 25,
+      colors: ["#10b981", "#3b82f6", "#8b5cf6"],
+    });
+    confetti({
+      particleCount: 120,
+      angle: 120,
+      spread: 45,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 25,
+      colors: ["#10b981", "#3b82f6", "#8b5cf6"],
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -39,6 +119,17 @@ const ReactResponse = () => {
       setEntries([res.data, ...entries]);
       setForm({ choice: 'response', situation: '', outcome: '' });
       fetchMonthlySummary(currentYear, currentMonth);
+
+      // Add activity points (+5)
+      await api.post('/activity/add', { actionType: 'reactResponse', points: 5 });
+      console.log('✅ +5 points for mindful awareness entry');
+
+      // Trigger confetti based on choice
+      if (form.choice === 'react') {
+        triggerReactConfetti();
+      } else {
+        triggerResponseConfetti();
+      }
     } catch (err) {
       alert('Failed to save');
     }

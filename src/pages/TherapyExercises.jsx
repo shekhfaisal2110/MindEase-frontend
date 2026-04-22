@@ -8,7 +8,17 @@ const TherapyExercises = () => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // ✅ Global storage: page view recorded once per day via backend
   useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'therapy' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
     fetchExercises();
   }, []);
 
@@ -16,8 +26,8 @@ const TherapyExercises = () => {
     try {
       const res = await api.get('/therapy');
       setExercises(res.data);
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const addExercise = async (e) => {
@@ -27,14 +37,18 @@ const TherapyExercises = () => {
       const res = await api.post('/therapy', { type, content });
       setExercises([res.data, ...exercises]);
       setContent('');
-    } catch (err) { console.error(err) }
+
+      // Add activity points for this exercise (+1)
+      await api.post('/activity/add', { actionType: 'growthHealing', points: 1 });
+      console.log('✅ +1 point for adding a growth exercise');
+    } catch (err) { console.error(err); }
   };
 
   const completeExercise = async (id) => {
     try {
       const res = await api.put(`/therapy/complete/${id}`);
       setExercises(exercises.map(ex => ex._id === id ? res.data : ex));
-    } catch (err) { console.error(err) }
+    } catch (err) { console.error(err); }
   };
 
   const getTypeStyles = (type) => {

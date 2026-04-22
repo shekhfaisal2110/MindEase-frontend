@@ -1,9 +1,184 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+
+// Self‑contained registration form – manages its own email check state
+const RegistrationForm = memo(({ onSubmit, serverError }) => {
+  const usernameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
+  
+  const [emailExists, setEmailExists] = useState(false);
+  const [recentLogins, setRecentLogins] = useState([]);
+  const [localError, setLocalError] = useState('');
+  const checkTimeout = useRef(null);
+  const emailCheckLock = useRef(false);
+
+  const checkEmail = useCallback((emailValue) => {
+    if (checkTimeout.current) clearTimeout(checkTimeout.current);
+    checkTimeout.current = setTimeout(async () => {
+      if (!emailValue || emailCheckLock.current) return;
+      emailCheckLock.current = true;
+      try {
+        const res = await api.get(`/auth/check-email/${emailValue}`);
+        if (res.data.exists) {
+          setEmailExists(true);
+          setRecentLogins(res.data.recentLogins || []);
+        } else {
+          setEmailExists(false);
+          setRecentLogins([]);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        emailCheckLock.current = false;
+      }
+    }, 500);
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formValues = {
+      username: usernameRef.current?.value || '',
+      email: emailRef.current?.value || '',
+      password: passwordRef.current?.value || '',
+      confirmPassword: confirmPasswordRef.current?.value || '',
+    };
+    // Basic frontend validation
+    if (!formValues.username) {
+      setLocalError('Username is required');
+      usernameRef.current?.focus();
+      return;
+    }
+    if (formValues.username.length < 3) {
+      setLocalError('Username must be at least 3 characters');
+      usernameRef.current?.focus();
+      return;
+    }
+    if (!formValues.email) {
+      setLocalError('Email is required');
+      emailRef.current?.focus();
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(formValues.email)) {
+      setLocalError('Please enter a valid email address');
+      emailRef.current?.focus();
+      return;
+    }
+    if (!formValues.password) {
+      setLocalError('Password is required');
+      passwordRef.current?.focus();
+      return;
+    }
+    if (formValues.password.length < 6) {
+      setLocalError('Password must be at least 6 characters');
+      passwordRef.current?.focus();
+      return;
+    }
+    if (formValues.password !== formValues.confirmPassword) {
+      setLocalError('Passwords do not match');
+      confirmPasswordRef.current?.focus();
+      return;
+    }
+    setLocalError('');
+    onSubmit(formValues);
+  };
+
+  const displayError = localError || serverError;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <div>
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Username</label>
+        <input
+          ref={usernameRef}
+          type="text"
+          name="username"
+          placeholder="e.g. wanderer_01"
+          className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Email Address</label>
+        <input
+          ref={emailRef}
+          type="email"
+          name="email"
+          placeholder="you@example.com"
+          onBlur={(e) => checkEmail(e.target.value)}
+          className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+        />
+      </div>
+
+      {emailExists && (
+        <div className="p-3 bg-amber-50 rounded-xl text-sm">
+          <p className="font-bold text-amber-700">⚠️ This email already has an account</p>
+          {recentLogins.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold text-amber-600">Recent logins:</p>
+              <ul className="text-xs text-amber-600 space-y-1 mt-1">
+                {recentLogins.map((login, idx) => (
+                  <li key={idx}>{new Date(login.timestamp).toLocaleString()}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-xs text-amber-600 mt-2">
+            <Link to="/forgot-password" className="underline">Forgot password?</Link> or{' '}
+            <Link to="/login" className="underline">login here</Link>.
+          </p>
+        </div>
+      )}
+
+      <div>
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Password</label>
+        <input
+          ref={passwordRef}
+          type="password"
+          name="password"
+          placeholder="••••••••"
+          className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Confirm Password</label>
+        <input
+          ref={confirmPasswordRef}
+          type="password"
+          name="confirmPassword"
+          placeholder="••••••••"
+          className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+        />
+      </div>
+
+      {displayError && (
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 text-sm rounded-xl">
+          {displayError}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className="w-full bg-slate-900 hover:bg-indigo-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-[0.98]"
+      >
+        Create Account
+      </button>
+
+      <div className="pt-6 text-center">
+        <p className="text-sm font-medium text-slate-500">
+          Already have an account?{' '}
+          <Link to="/login" className="text-indigo-600 font-black hover:underline underline-offset-4">
+            Log in
+          </Link>
+        </p>
+      </div>
+    </form>
+  );
+});
 
 const Register = () => {
   const navigate = useNavigate();
@@ -13,48 +188,19 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isResending, setIsResending] = useState(false);
-  const [emailExists, setEmailExists] = useState(false);
-  const [recentLogins, setRecentLogins] = useState([]);
-  const [emailChecked, setEmailChecked] = useState(false);
 
-  const validationSchema = Yup.object({
-    username: Yup.string().required('Username is required').min(3, 'Minimum 3 characters'),
-    email: Yup.string().email('Invalid email address').required('Email is required'),
-    password: Yup.string().required('Password is required').min(6, 'Must be at least 6 characters'),
-    confirmPassword: Yup.string()
-      .oneOf([Yup.ref('password'), null], 'Passwords must match')
-      .required('Please confirm your password'),
-  });
-
-  const checkEmail = async (emailValue) => {
-    if (!emailValue) return;
-    try {
-      const res = await api.get(`/auth/check-email/${emailValue}`);
-      if (res.data.exists) {
-        setEmailExists(true);
-        setRecentLogins(res.data.recentLogins || []);
-      } else {
-        setEmailExists(false);
-        setRecentLogins([]);
-      }
-      setEmailChecked(true);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleRegister = async (values) => {
+  const handleRegister = useCallback(async (formValues) => {
     setError('');
     try {
-      const res = await api.post('/auth/register', values);
+      const res = await api.post('/auth/register', formValues);
       setUserId(res.data.userId);
-      setEmail(values.email);
+      setEmail(formValues.email);
       setStep(2);
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
+      const message = err.response?.data?.message || 'Registration failed. Please try again.';
       setError(message);
     }
-  };
+  }, []);
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -104,106 +250,7 @@ const Register = () => {
   if (step === 1) {
     return (
       <AuthContainer title="Join the Journey" subtitle="Create your account to get started.">
-        <Formik
-          initialValues={{ username: '', email: '', password: '', confirmPassword: '' }}
-          validationSchema={validationSchema}
-          onSubmit={handleRegister}
-        >
-          {({ isSubmitting, values, handleChange, handleBlur, touched, errors }) => (
-            <Form className="space-y-5">
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Username</label>
-                <Field
-                  type="text"
-                  name="username"
-                  placeholder="e.g. wanderer_01"
-                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-                <ErrorMessage name="username" component="div" className="text-rose-500 text-xs mt-1" />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Email Address</label>
-                <Field
-                  type="email"
-                  name="email"
-                  placeholder="you@example.com"
-                  onBlur={(e) => {
-                    handleBlur(e);
-                    checkEmail(e.target.value);
-                  }}
-                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-                <ErrorMessage name="email" component="div" className="text-rose-500 text-xs mt-1" />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Password</label>
-                <Field
-                  type="password"
-                  name="password"
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-                <ErrorMessage name="password" component="div" className="text-rose-500 text-xs mt-1" />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Confirm Password</label>
-                <Field
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-                <ErrorMessage name="confirmPassword" component="div" className="text-rose-500 text-xs mt-1" />
-              </div>
-
-              {emailChecked && emailExists && (
-                <div className="mt-4 p-3 bg-amber-50 rounded-xl text-sm">
-                  <p className="font-bold text-amber-700">⚠️ This email already has an account</p>
-                  {recentLogins.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs font-semibold text-amber-600">Recent logins:</p>
-                      <ul className="text-xs text-amber-600 space-y-1 mt-1">
-                        {recentLogins.map((login, idx) => (
-                          <li key={idx}>{new Date(login.timestamp).toLocaleString()}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <p className="text-xs text-amber-600 mt-2">
-                    <Link to="/forgot-password" className="underline">Forgot password?</Link> or{' '}
-                    <Link to="/login" className="underline">login here</Link>.
-                  </p>
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 text-sm rounded-xl">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-slate-900 hover:bg-indigo-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
-              >
-                {isSubmitting ? 'Creating Account...' : 'Create Account'}
-              </button>
-
-              <div className="pt-6 text-center">
-                <p className="text-sm font-medium text-slate-500">
-                  Already have an account?{' '}
-                  <button type="button" onClick={() => navigate('/login')} className="text-indigo-600 font-black hover:underline underline-offset-4">
-                    Log in
-                  </button>
-                </p>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <RegistrationForm onSubmit={handleRegister} serverError={error} />
       </AuthContainer>
     );
   }

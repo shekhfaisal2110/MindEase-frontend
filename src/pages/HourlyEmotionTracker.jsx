@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 
 const HourlyEmotionTracker = () => {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [hourlyData, setHourlyData] = useState({});
   const [monthlySummary, setMonthlySummary] = useState({});
@@ -15,6 +18,29 @@ const HourlyEmotionTracker = () => {
   const [startTime, setStartTime] = useState('06:00');
   const [endTime, setEndTime] = useState('08:00');
   const [errorMsg, setErrorMsg] = useState('');
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [negativeCount, setNegativeCount] = useState(0);
+  const [modalShownForDate, setModalShownForDate] = useState('');
+
+  // Reset negative count and modal flag when selected date changes
+  useEffect(() => {
+    setNegativeCount(0);
+    setShowSupportModal(false);
+    setModalShownForDate('');
+  }, [selectedDate]);
+
+  // Global storage: page view recorded once per day via backend
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'hourlyEmotion' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
+  }, []);
 
   const defaultHourBlocks = [
     '6:00 - 8:00', '8:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00',
@@ -64,6 +90,48 @@ const HourlyEmotionTracker = () => {
     }
   };
 
+  // Positive confetti (vibrant, multi-color)
+  const triggerPositiveConfetti = () => {
+    confetti({
+      particleCount: 300,
+      spread: 100,
+      origin: { y: 0.6 },
+      startVelocity: 25,
+      colors: ["#2563eb", "#3b82f6", "#60a5fa", "#1d4ed8", "#f59e0b", "#10b981", "#ef4444"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    confetti({
+      particleCount: 150,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
+    });
+    confetti({
+      particleCount: 150,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#f97316", "#84cc16", "#a855f7"],
+    });
+  };
+
+  // Neutral confetti (gentle, light sparkles)
+  const triggerNeutralConfetti = () => {
+    confetti({
+      particleCount: 100,
+      spread: 60,
+      origin: { y: 0.6 },
+      startVelocity: 15,
+      colors: ["#e2e8f0", "#cbd5e1", "#94a3b8"],
+      decay: 0.9,
+      gravity: 0.5,
+    });
+  };
+
   const saveEmotion = async (hourBlock, emotion) => {
     try {
       await api.post('/emotion-hourly', {
@@ -72,6 +140,26 @@ const HourlyEmotionTracker = () => {
         emotion
       });
       setHourlyData(prev => ({ ...prev, [hourBlock]: emotion }));
+
+      // Add activity points (+5)
+      await api.post('/activity/add', { actionType: 'hourlyEmotion', points: 5 });
+      console.log(`✅ +5 points for tracking emotion (${hourBlock}: ${emotion})`);
+
+      // Trigger animations / popup based on emotion
+      if (emotion === 'positive') {
+        triggerPositiveConfetti();
+      } else if (emotion === 'neutral') {
+        triggerNeutralConfetti();
+      } else if (emotion === 'negative') {
+        // Increment negative count for the current date
+        const newCount = negativeCount + 1;
+        setNegativeCount(newCount);
+        // Show support modal after 3 negative clicks (i.e., on 4th negative)
+        if (newCount >= 4 && modalShownForDate !== selectedDate) {
+          setShowSupportModal(true);
+          setModalShownForDate(selectedDate);
+        }
+      }
     } catch (err) {
       alert('Failed to save');
     }
@@ -98,7 +186,6 @@ const HourlyEmotionTracker = () => {
     const endFormatted = endTime.slice(0, 5);
     const newBlock = `${startFormatted} - ${endFormatted}`;
 
-    // Check duplicate (exact same label)
     if (allBlocks.includes(newBlock)) {
       setErrorMsg(`Time block "${newBlock}" already exists.`);
       return;
@@ -176,6 +263,7 @@ const HourlyEmotionTracker = () => {
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* (existing JSX unchanged) */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mood Timeline</h1>
@@ -277,6 +365,36 @@ const HourlyEmotionTracker = () => {
           </div>
         )}
       </main>
+
+      {/* Support Modal for Negative Emotions (after 4th negative click) */}
+      {showSupportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="text-center mb-4">
+              <div className="text-5xl mb-2">😔</div>
+              <h3 className="text-xl font-black text-slate-800">You've been feeling down</h3>
+              <p className="text-slate-500 mt-2">We notice you've had several negative moments today. Would you like to talk to someone?</p>
+            </div>
+            <div className="flex flex-col gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowSupportModal(false);
+                  navigate('/chat');
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition"
+              >
+                💬 Talk to Support
+              </button>
+              <button
+                onClick={() => setShowSupportModal(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

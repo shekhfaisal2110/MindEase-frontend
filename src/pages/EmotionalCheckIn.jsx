@@ -18,7 +18,19 @@ const EmotionalCheckIn = () => {
     { label: 'Frustrated', emoji: '😤' }
   ];
 
-  useEffect(() => { fetchActivities(); }, []);
+  // ✅ Global storage: page view recorded once per day via backend
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'emotional' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
+    fetchActivities();
+  }, []);
 
   const fetchActivities = async () => {
     try {
@@ -35,7 +47,13 @@ const EmotionalCheckIn = () => {
       const res = await api.post('/emotional', { emotion, intensity, note });
       setActivities([res.data, ...activities]);
       setEmotion(''); setIntensity(5); setNote('');
-    } catch (err) { console.error(err); }
+
+      // Add activity point for this check‑in
+      await api.post('/activity/add', { actionType: 'emotionalCheckIn', points: 1 });
+      console.log('✅ +1 point for emotional check‑in');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const getIntensityColor = (val) => {

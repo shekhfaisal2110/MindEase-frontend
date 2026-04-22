@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Yup from 'yup';
+import confetti from 'canvas-confetti';
 import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 import FormikForm from '../components/FormikForm';
@@ -8,17 +9,72 @@ const Affirmations = () => {
   const [affirmations, setAffirmations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchAffirmations(); }, []);
+  // Record page view for analytics (once per day)
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'affirmations' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'pageView', points: 1 });
+        }
+      } catch (err) { console.error(err); }
+    };
+    recordPageView();
+    fetchAffirmations();
+  }, []);
 
   const fetchAffirmations = async () => {
     try {
       const res = await api.get('/affirmations');
       setAffirmations(res.data);
+
+      // Award points based on total affirmations / 2, but only once per day
+      const pointsCheck = await api.post('/daily-activity/page-view', { pageName: 'affirmationPoints' });
+      if (!pointsCheck.data.alreadyRecorded && res.data.length > 0) {
+        const pointsToAdd = Math.floor(res.data.length / 2);
+        if (pointsToAdd > 0) {
+          await api.post('/activity/add', { 
+            actionType: 'affirmation', 
+            meta: { totalAffirmations: res.data.length } 
+          });
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const triggerConfetti = () => {
+    // Main burst from center
+    confetti({
+      particleCount: 300,
+      spread: 100,
+      origin: { y: 0.6 },
+      startVelocity: 25,
+      colors: ["#2563eb", "#3b82f6", "#60a5fa", "#1d4ed8", "#f59e0b", "#10b981", "#ef4444"],
+      decay: 0.9,
+      gravity: 1,
+    });
+    // Left corner burst
+    confetti({
+      particleCount: 150,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
+    });
+    // Right corner burst
+    confetti({
+      particleCount: 150,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.5 },
+      startVelocity: 30,
+      colors: ["#f97316", "#84cc16", "#a855f7"],
+    });
   };
 
   const initialValues = { text: '', targetCount: 30 };
@@ -38,8 +94,18 @@ const Affirmations = () => {
   };
 
   const increment = async (id) => {
+    // Find the current affirmation to check if it was already completed
+    const current = affirmations.find(a => a._id === id);
+    const wasComplete = current && current.count >= current.targetCount;
+
     const res = await api.put(`/affirmations/increment/${id}`);
-    setAffirmations(prev => prev.map(a => a._id === id ? res.data : a));
+    const updated = res.data;
+    setAffirmations(prev => prev.map(a => a._id === id ? updated : a));
+
+    // If the increment made the count reach or exceed the target, and it wasn't already complete, trigger confetti
+    if (!wasComplete && updated.count >= updated.targetCount) {
+      triggerConfetti();
+    }
   };
 
   const deleteAff = async (id) => {

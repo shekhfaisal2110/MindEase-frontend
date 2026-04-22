@@ -9,6 +9,22 @@ const DailyRoutine = () => {
   const [routine, setRoutine] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Record page view (growthHealing) using global daily-activity endpoint
+  useEffect(() => {
+    const recordPageView = async () => {
+      try {
+        const res = await api.post('/daily-activity/page-view', { pageName: 'growthHealing' });
+        if (!res.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'growthHealing', points: 1 });
+          console.log('✅ +1 point for visiting Growth & Healing');
+        }
+      } catch (err) {
+        console.error('Failed to record page view:', err);
+      }
+    };
+    recordPageView();
+  }, []);
+
   useEffect(() => {
     fetchRoutine();
   }, [selectedDate]);
@@ -27,6 +43,10 @@ const DailyRoutine = () => {
 
   const updateRoutineItem = async (itemIndex, completed) => {
     if (!routine) return;
+    const wasCompleted = routine.items[itemIndex].completed;
+    const taskName = routine.items[itemIndex].name;
+    const shouldAddPoints = !wasCompleted && completed;
+
     const updatedItems = [...routine.items];
     updatedItems[itemIndex].completed = completed;
 
@@ -37,8 +57,21 @@ const DailyRoutine = () => {
         notes: routine.notes,
       });
       setRoutine(response.data);
+
+      if (shouldAddPoints) {
+        // Check with backend if this routine item has already earned points today
+        const checkRes = await api.post('/daily-activity/routine-item', { itemName: taskName });
+        if (!checkRes.data.alreadyRecorded) {
+          await api.post('/activity/add', { actionType: 'dailyTask', points: 3 });
+          console.log(`✅ +3 points for completing ritual: ${taskName}`);
+          alert(`✨ +3 points earned for completing "${taskName}"!`);
+        } else {
+          console.log(`⏭️ Points already awarded today for: ${taskName}`);
+        }
+      }
     } catch (error) {
       console.error('Failed to update routine:', error);
+      alert('Failed to save progress. Please try again.');
     }
   };
 
@@ -56,26 +89,14 @@ const DailyRoutine = () => {
     }
   };
 
-  // Helper to get mood color
-  const getMoodColor = (num) => {
-    if (num <= 3) return 'bg-rose-100 text-rose-700 border-rose-200';
-    if (num <= 7) return 'bg-amber-100 text-amber-700 border-amber-200';
-    return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  };
-
   const completedCount = routine?.items.filter((i) => i.completed).length || 0;
   const totalCount = routine?.items.length || 0;
   const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <PageLayout 
-      title="Daily Rituals" 
-      subtitle="Small steps every day lead to big changes."
-      maxWidth="max-w-3xl"
-    >
+    <PageLayout title="Daily Rituals" subtitle="Small steps every day lead to big changes." maxWidth="max-w-3xl">
       <div className="space-y-6">
-        
-        {/* Date Selector Card */}
+        {/* Date Selector */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
@@ -83,145 +104,49 @@ const DailyRoutine = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Selected Day</p>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="font-bold text-slate-800 bg-transparent border-none focus:ring-0 p-0 cursor-pointer"
-              />
+              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="font-bold text-slate-800 bg-transparent border-none focus:ring-0 p-0 cursor-pointer" />
             </div>
           </div>
-          
           <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button 
-              onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              className="px-4 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors"
-            >
-              Today
-            </button>
-            <button 
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-            </button>
+            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600">←</button>
+            <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="px-4 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100">Today</button>
+            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600">→</button>
           </div>
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-3xl p-12 flex flex-col items-center justify-center space-y-4">
-             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-             <p className="text-slate-500 font-medium">Gathering your routine...</p>
-          </div>
+          <div className="bg-white rounded-3xl p-12 flex flex-col items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div><p className="text-slate-500 font-medium mt-4">Loading...</p></div>
         ) : (
           <>
-            {/* Mood Tracker Card */}
+            {/* Mood Tracker */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                <span className="mr-3 text-2xl">💭</span>
-                How are you feeling?
-              </h2>
-              
+              <h2 className="text-xl font-bold text-slate-800 mb-6">💭 How are you feeling?</h2>
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => updateMood(num)}
-                    className={`
-                      aspect-square rounded-2xl font-bold transition-all duration-300 border-2
-                      ${routine?.mood === num 
-                        ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-lg shadow-indigo-100' 
-                        : 'bg-slate-50 border-transparent text-slate-500 hover:border-indigo-200 hover:bg-indigo-50'
-                      }
-                    `}
-                  >
-                    {num}
-                  </button>
+                {[1,2,3,4,5,6,7,8,9,10].map(num => (
+                  <button key={num} onClick={() => updateMood(num)} className={`aspect-square rounded-2xl font-bold transition-all border-2 ${routine?.mood === num ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-50 border-transparent text-slate-500 hover:border-indigo-200'}`}>{num}</button>
                 ))}
               </div>
-              
-              <div className="mt-6 flex items-center justify-between px-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Very Low</span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Thriving</span>
-              </div>
+              <div className="mt-6 flex justify-between px-2"><span className="text-xs font-bold text-slate-400">Very Low</span><span className="text-xs font-bold text-slate-400">Thriving</span></div>
             </div>
 
-            {/* Checklist Card */}
+            {/* Checklist */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                  <span className="mr-3 text-2xl">✨</span>
-                  Self-Care Rituals
-                </h2>
-                <div className="text-right">
-                  <p className="text-2xl font-black text-indigo-600 leading-none">{completedCount}/{totalCount}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Done</p>
-                </div>
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-xl font-bold text-slate-800">✨ Self-Care Rituals</h2>
+                <div className="text-right"><p className="text-2xl font-black text-indigo-600">{completedCount}/{totalCount}</p><p className="text-[10px] font-bold text-slate-400 uppercase">Done</p></div>
               </div>
-
-              {/* Progress Bar */}
-              <div className="w-full h-3 bg-slate-100 rounded-full mb-8 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700 ease-out"
-                  style={{ width: `${completionRate}%` }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                {routine?.items.length > 0 ? routine.items.map((item, index) => (
-                  <label
-                    key={index}
-                    className={`
-                      group flex items-center p-4 rounded-2xl cursor-pointer transition-all duration-200 border-2
-                      ${item.completed 
-                        ? 'bg-slate-50/50 border-transparent' 
-                        : 'bg-white border-slate-50 hover:border-indigo-100 hover:shadow-sm'
-                      }
-                    `}
-                  >
-                    <div className="relative flex items-center justify-center mr-4">
-                      <input
-                        type="checkbox"
-                        checked={item.completed}
-                        onChange={(e) => updateRoutineItem(index, e.target.checked)}
-                        className="peer sr-only"
-                      />
-                      <div className="w-6 h-6 border-2 border-slate-200 rounded-lg peer-checked:bg-indigo-600 peer-checked:border-indigo-600 transition-all flex items-center justify-center">
-                        <svg className={`w-4 h-4 text-white transition-transform ${item.completed ? 'scale-100' : 'scale-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                      </div>
+              <div className="w-full h-3 bg-slate-100 rounded-full mb-8 overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700" style={{ width: `${completionRate}%` }} /></div>
+              <div className="space-y-3">
+                {routine?.items.map((item, idx) => (
+                  <label key={idx} className={`flex items-center p-4 rounded-2xl cursor-pointer transition border-2 ${item.completed ? 'bg-slate-50/50 border-transparent' : 'bg-white border-slate-50 hover:border-indigo-100'}`}>
+                    <input type="checkbox" checked={item.completed} onChange={(e) => updateRoutineItem(idx, e.target.checked)} className="hidden" />
+                    <div className="w-6 h-6 border-2 border-slate-200 rounded-lg flex items-center justify-center mr-4">
+                      {item.completed && <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                     </div>
-                    
-                    <span className={`flex-1 font-bold transition-all ${
-                      item.completed ? 'text-slate-300 line-through' : 'text-slate-700'
-                    }`}>
-                      {item.name}
-                    </span>
-
-                    {item.completed && (
-                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md">
-                        Done
-                      </span>
-                    )}
+                    <span className={`flex-1 font-bold ${item.completed ? 'text-slate-300 line-through' : 'text-slate-700'}`}>{item.name}</span>
+                    {item.completed && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Done</span>}
                   </label>
-                )) : (
-                   <div className="py-10 text-center">
-                      <p className="text-slate-400 font-medium">No rituals set for this day.</p>
-                   </div>
-                )}
+                ))}
               </div>
             </div>
           </>
