@@ -9,8 +9,9 @@ const Navbar = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
 
-  // If not logged in, don't render navbar at all
+  // If not logged in, don't render navbar
   if (!user) return null;
 
   useEffect(() => {
@@ -33,10 +34,8 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  // Logo click confetti celebration
   const handleLogoClick = (e) => {
     e.preventDefault();
-    // Trigger a celebratory confetti burst
     confetti({
       particleCount: 200,
       spread: 70,
@@ -46,7 +45,6 @@ const Navbar = () => {
       decay: 0.9,
       gravity: 1,
     });
-    // Also burst from left corner
     confetti({
       particleCount: 100,
       angle: 60,
@@ -55,7 +53,6 @@ const Navbar = () => {
       startVelocity: 25,
       colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
     });
-    // And from right corner
     confetti({
       particleCount: 100,
       angle: 120,
@@ -64,30 +61,70 @@ const Navbar = () => {
       startVelocity: 25,
       colors: ["#f97316", "#84cc16", "#a855f7"],
     });
-    // Navigate to dashboard after a tiny delay (so confetti starts first)
     setTimeout(() => navigate('/dashboard'), 50);
   };
 
-  const navLinks = [
-    { to: "/dashboard", label: "Dashboard" },
-    { to: "/hourly-emotion", label: "Hourly Emotions" },
-    { to: "/emotional", label: "Emotions" },
-    { to: "/gratitude", label: "Gratitude" },
-    { to: "/affirmations", label: "Affirmations" },
-    { to: "/therapy", label: "Therapy" },
-    { to: "/letters", label: "Letters" },
-    { to: "/dailytracker", label: "Daily Tracker" },
-    { to: "/react-response", label: "React vs Response" },
-    { to: "/ikigai", label: "Ikigai" },
-    { to: "/chat", label: "Support" },
-    { to: "/analytics", label: "Analytics" },
+  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+
+  // Dropdown structure – groups of links
+  const navGroups = [
+    {
+      label: "Dashboard",
+      links: [{ to: "/dashboard", label: "Dashboard" }],
+    },
+    {
+      label: "Emotional Wellness",
+      links: [
+        { to: "/hourly-emotion", label: "Hourly Emotions" },
+        { to: "/emotional", label: "Emotions" },
+        { to: "/react-response", label: "React vs Response" },
+      ],
+    },
+    {
+      label: "Growth Tools",
+      links: [
+        { to: "/affirmations", label: "Affirmations" },
+        { to: "/therapy", label: "Therapy" },
+        { to: "/letters", label: "Letters" },
+        { to: "/ikigai", label: "Ikigai" },
+      ],
+    },
+    {
+      label: "Daily Tracking",
+      links: [
+        { to: "/gratitude", label: "Gratitude" },
+        { to: "/dailytracker", label: "Daily Tracker" },
+        { to: "/time-dashboard", label: "Time with Loved Ones" },
+        { to: "/device-usage", label: "Digital Wellbeing" },
+      ],
+    },
+    {
+      label: "Insights",
+      links: [{ to: "/analytics", label: "Analytics" }],
+    },
+    {
+      label: "Support",
+      links: [{ to: "/chat", label: "Support" }],
+    },
   ];
 
-  // Admin only link
-  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  // Admin only group
   if (isAdmin) {
-    navLinks.push({ to: "/admin-chat", label: "Admin Chat" });
+    navGroups.push({
+      label: "Admin",
+      links: [{ to: "/admin-chat", label: "Admin Chat" }],
+    });
   }
+
+  const toggleDropdown = (label) => {
+    setOpenDropdown(openDropdown === label ? null : label);
+  };
+
+  // Close dropdown when a link is clicked
+  const handleLinkClick = () => {
+    setOpenDropdown(null);
+    setIsMenuOpen(false);
+  };
 
   return (
     <>
@@ -97,36 +134,70 @@ const Navbar = () => {
           : 'bg-indigo-600 py-4'
       } text-white`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
-          {/* Logo with click handler */}
-          <button 
-            onClick={handleLogoClick}
-            className="flex items-center space-x-3 group focus:outline-none"
-          >
+          {/* Logo */}
+          <button onClick={handleLogoClick} className="flex items-center space-x-3 group focus:outline-none">
             <div className="bg-white p-1.5 rounded-xl transition-transform group-hover:scale-110 shadow-lg">
               <span className="text-xl">🌿</span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight">Mind<span className="text-indigo-200">Ease</span></h1>
           </button>
 
+          {/* Desktop Navigation (Dropdowns) */}
+          <div className="hidden lg:flex items-center space-x-1">
+            {navGroups.map((group) => (
+              <div key={group.label} className="relative group">
+                <button
+                  onClick={() => toggleDropdown(group.label)}
+                  className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:bg-white/10 flex items-center gap-1"
+                >
+                  {group.label}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div className={`absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-200 z-20 ${
+                  openDropdown === group.label ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'
+                }`}>
+                  {group.links.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      onClick={handleLinkClick}
+                      className={`block px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 transition ${
+                        location.pathname === link.to ? 'bg-indigo-50 text-indigo-600 font-semibold' : ''
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right side: user info + logout + hamburger */}
           <div className="flex items-center space-x-4">
             <div className="hidden sm:flex flex-col items-end mr-2">
               <span className="text-[10px] uppercase tracking-widest text-indigo-200 font-bold">Welcome back</span>
               <span className="text-sm font-semibold">{user?.username}</span>
             </div>
-            <button 
+            <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors focus:ring-2 focus:ring-white/50 outline-none"
               aria-label="Toggle menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />}
+                {isMenuOpen ? 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /> : 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                }
               </svg>
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Full screen overlay menu */}
+      {/* Mobile menu (full‑screen overlay) */}
       <div className={`fixed inset-0 z-40 transition-all duration-500 ${isMenuOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}>
         <div className="absolute inset-0 bg-indigo-950/60 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
         <div className={`absolute right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -134,29 +205,39 @@ const Navbar = () => {
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-indigo-900 text-2xl font-bold">Menu</h2>
               <button onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="flex-grow overflow-y-auto pr-2">
-              <div className="grid gap-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                      location.pathname === link.to ? 'bg-indigo-50 text-indigo-600 font-bold' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>{link.label}</span>
-                    {location.pathname === link.to && <div className="w-2 h-2 rounded-full bg-indigo-600" />}
-                  </Link>
-                ))}
-              </div>
+              {navGroups.map((group) => (
+                <div key={group.label} className="mb-6">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">{group.label}</h3>
+                  <div className="space-y-2">
+                    {group.links.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        onClick={handleLinkClick}
+                        className={`block px-4 py-2 rounded-xl transition ${
+                          location.pathname === link.to
+                            ? 'bg-indigo-50 text-indigo-600 font-bold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100">
               <button onClick={handleLogout} className="w-full bg-red-50 text-red-600 font-bold py-4 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center space-x-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 <span>Sign Out</span>
               </button>
             </div>

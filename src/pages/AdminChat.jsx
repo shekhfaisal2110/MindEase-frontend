@@ -3,6 +3,7 @@ import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 import { useAuth } from '../context/AuthContext';
 import MessageBubble from '../components/MessageBubble';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const AdminChat = () => {
   const { user, logout } = useAuth();
@@ -12,6 +13,7 @@ const AdminChat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showChat, setShowChat] = useState(false); // for mobile: show chat area instead of list
   const messagesEndRef = useRef(null);
   const pollingRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -29,6 +31,7 @@ const AdminChat = () => {
         window.location.href = '/login';
       }
       console.error(err);
+      setLoading(false);
     }
   };
 
@@ -105,6 +108,16 @@ const AdminChat = () => {
     fetchConversations();
   };
 
+  const selectUser = (user) => {
+    setSelectedUser(user);
+    setShowChat(true);
+  };
+
+  const goBackToList = () => {
+    setSelectedUser(null);
+    setShowChat(false);
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -113,89 +126,115 @@ const AdminChat = () => {
     );
   }
 
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <PageLayout title="Admin Chat" subtitle="Communicate with users">
-      <div className="flex h-[75vh] bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        {/* Sidebar - User list */}
-        <div className="w-80 border-r border-slate-100 flex flex-col">
-          <div className="p-4 bg-slate-50 border-b">
-            <h3 className="font-bold text-slate-800">Conversations</h3>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
-              <div className="p-4 text-center text-slate-400">No conversations yet</div>
-            ) : (
-              conversations.map((conv) => (
-                <button
-                  key={conv.user._id}
-                  onClick={() => setSelectedUser(conv.user)}
-                  className={`w-full text-left p-4 border-b border-slate-50 hover:bg-slate-50 transition ${selectedUser?._id === conv.user._id ? 'bg-indigo-50' : ''}`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-bold text-slate-800">{conv.user.username}</p>
-                      <p className="text-xs text-slate-500 truncate">{conv.user.email}</p>
+      <div className="relative h-[75vh] bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Mobile: show either list or chat, Desktop: side by side */}
+        <div className="flex h-full flex-col md:flex-row">
+          {/* Conversation List – visible on desktop always, on mobile only when not in chat */}
+          <div className={`${showChat ? 'hidden md:block' : 'block'} w-full md:w-80 border-r border-slate-100 flex flex-col h-full`}>
+            <div className="p-4 bg-slate-50 border-b">
+              <h3 className="font-bold text-slate-800">Conversations</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {conversations.length === 0 ? (
+                <div className="p-4 text-center text-slate-400">No conversations yet</div>
+              ) : (
+                conversations.map((conv) => (
+                  <button
+                    key={conv.user._id}
+                    onClick={() => selectUser(conv.user)}
+                    className={`w-full text-left p-4 border-b border-slate-50 hover:bg-slate-50 transition ${
+                      selectedUser?._id === conv.user._id && !showChat ? 'bg-indigo-50' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="overflow-hidden">
+                        <p className="font-bold text-slate-800 truncate">{conv.user.username}</p>
+                        <p className="text-xs text-slate-500 truncate">{conv.user.email}</p>
+                      </div>
+                      {conv.unreadCount > 0 && (
+                        <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 shrink-0">
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
-                    {conv.unreadCount > 0 && (
-                      <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{conv.unreadCount}</span>
-                    )}
+                    <p className="text-xs text-slate-400 truncate mt-1">{conv.lastMessage}</p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Chat Area – visible on desktop always, on mobile only when chat is active */}
+          <div className={`${!showChat ? 'hidden md:flex' : 'flex'} flex-1 flex-col h-full`}>
+            {selectedUser ? (
+              <>
+                <div className="p-4 bg-slate-50 border-b flex items-center gap-3">
+                  <button
+                    onClick={goBackToList}
+                    className="md:hidden p-1 rounded-full hover:bg-slate-200 transition"
+                    aria-label="Back to conversations"
+                  >
+                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </button>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-bold text-slate-800 truncate">{selectedUser.username}</p>
+                    <p className="text-xs text-slate-500 truncate">{selectedUser.email}</p>
                   </div>
-                  <p className="text-xs text-slate-400 truncate mt-1">{conv.lastMessage}</p>
-                </button>
-              ))
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {messages.map((msg) => (
+                    <MessageBubble
+                      key={msg._id}
+                      message={msg}
+                      isMyMessage={msg.sender._id === user?.id}
+                      onMessageUpdated={handleMessageUpdated}
+                      onMessageDeleted={handleMessageDeleted}
+                    />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+                <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 flex gap-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type reply..."
+                    className="flex-1 bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current.click()}
+                    disabled={uploading}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-2xl transition"
+                  >
+                    {uploading ? '📤' : '📷'}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-2xl transition">
+                    Send
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-slate-400">
+                Select a conversation
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col">
-          {selectedUser ? (
-            <>
-              <div className="p-4 bg-slate-50 border-b">
-                <p className="font-bold text-slate-800">{selectedUser.username}</p>
-                <p className="text-xs text-slate-500">{selectedUser.email}</p>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.map((msg) => (
-                  <MessageBubble
-                    key={msg._id}
-                    message={msg}
-                    isMyMessage={msg.sender._id === user?.id}
-                    onMessageUpdated={handleMessageUpdated}
-                    onMessageDeleted={handleMessageDeleted}
-                  />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-              <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type reply..."
-                  className="flex-1 bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current.click()}
-                  disabled={uploading}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-2xl transition"
-                >
-                  {uploading ? '📤' : '📷'}
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-2xl transition">Send</button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400">Select a conversation</div>
-          )}
         </div>
       </div>
     </PageLayout>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import api from '../services/api';
 import PageLayout from '../components/PageLayout';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const DailyTracker = () => {
   const [track, setTrack] = useState({
@@ -59,13 +60,12 @@ const DailyTracker = () => {
         exerciseCompleted: false, readingCompleted: false, journalingCompleted: false, 
         affirmationText: '', journalingText: '', notes: '' 
       });
-      setConfettiTriggered(false); // reset confetti flag for the new date
+      setConfettiTriggered(false);
     } catch(err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   const triggerConfetti = () => {
-    // Main burst from center
     confetti({
       particleCount: 300,
       spread: 100,
@@ -75,7 +75,6 @@ const DailyTracker = () => {
       decay: 0.9,
       gravity: 1,
     });
-    // Left corner burst
     confetti({
       particleCount: 150,
       angle: 60,
@@ -84,7 +83,6 @@ const DailyTracker = () => {
       startVelocity: 30,
       colors: ["#8b5cf6", "#ec4899", "#06b6d4"],
     });
-    // Right corner burst
     confetti({
       particleCount: 150,
       angle: 120,
@@ -100,10 +98,8 @@ const DailyTracker = () => {
     const taskName = activities.find(a => a.key === key)?.label || key;
     const shouldAddPoints = !wasCompleted && checked;
 
-    // Update local state optimistically
     setTrack(prev => ({ ...prev, [key]: checked }));
 
-    // Check if after this change all tasks are completed
     const newCompletedCount = activities.filter(a => 
       (a.key === key ? checked : track[a.key])
     ).length;
@@ -161,7 +157,6 @@ const DailyTracker = () => {
     let days = [];
 
     for (let i=0; i<firstDay; i++) days.push(<div key={`e-${i}`} className="aspect-square"></div>);
-
     for (let d=1; d<=daysInMonth; d++) {
       const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const t = calendarData[dateStr];
@@ -182,9 +177,7 @@ const DailyTracker = () => {
           <span className={`text-sm font-bold ${allDone ? 'text-white' : 'text-slate-700'}`}>{d}</span>
           {itemsDone > 0 && !allDone && (
             <div className="flex gap-0.5 mt-1">
-              {[...Array(itemsDone)].map((_, i) => (
-                <div key={i} className="w-1 h-1 rounded-full bg-indigo-400" />
-              ))}
+              {[...Array(itemsDone)].map((_, i) => <div key={i} className="w-1 h-1 rounded-full bg-indigo-400" />)}
             </div>
           )}
           {isToday && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-rose-500 rounded-full" />}
@@ -194,9 +187,13 @@ const DailyTracker = () => {
     return days;
   };
 
+  // Show loading spinner while initial data is being fetched
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <PageLayout title="Daily Growth" subtitle="Track your 6 core habits for a balanced mind.">
-      {/* View Toggle (Segmented Control) */}
       <div className="flex p-1 bg-slate-100 rounded-2xl mb-8 max-w-xs mx-auto">
         <button 
           onClick={() => setViewMode('today')} 
@@ -269,7 +266,6 @@ const DailyTracker = () => {
                     </div>
                   </label>
                   
-                  {/* Expansion Areas */}
                   {act.key === 'affirmationCompleted' && track.affirmationCompleted && (
                     <div className="mt-4 animate-in slide-in-from-top-2">
                       <textarea 
@@ -298,19 +294,18 @@ const DailyTracker = () => {
           </div>
 
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-             <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center">
-               <span className="mr-2">📝</span> Daily Reflections
-             </h4>
-             <textarea 
-                value={track.notes} 
-                onChange={e => setTrack({...track, notes: e.target.value})} 
-                placeholder="Any other thoughts on today?" 
-                rows="3" 
-                className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none" 
-              />
+            <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center">
+              <span className="mr-2">📝</span> Daily Reflections
+            </h4>
+            <textarea 
+              value={track.notes} 
+              onChange={e => setTrack({...track, notes: e.target.value})} 
+              placeholder="Any other thoughts on today?" 
+              rows="3" 
+              className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none" 
+            />
           </div>
 
-          {/* Floating Save Button Area */}
           <div className="sticky bottom-6 left-0 right-0 py-4 px-2">
             <button 
               onClick={saveTracking} 

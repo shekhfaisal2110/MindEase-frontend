@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Ikigai = () => {
   const [ikigai, setIkigai] = useState({
@@ -86,15 +87,10 @@ const Ikigai = () => {
     { key: 'earn', label: 'What you can be Paid For', icon: '💰', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', accent: 'bg-amber-500' },
   ];
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-medium animate-pulse">Reflecting on your purpose...</p>
-      </div>
-    </div>
-  );
+  // Show full‑page loading spinner while fetching data
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">

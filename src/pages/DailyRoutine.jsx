@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import PageLayout from '../components/PageLayout';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const DailyRoutine = () => {
   const { user } = useAuth();
@@ -93,6 +94,11 @@ const DailyRoutine = () => {
   const totalCount = routine?.items.length || 0;
   const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  // Show full‑screen loading spinner while fetching data
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <PageLayout title="Daily Rituals" subtitle="Small steps every day lead to big changes." maxWidth="max-w-3xl">
       <div className="space-y-6">
@@ -114,43 +120,37 @@ const DailyRoutine = () => {
           </div>
         </div>
 
-        {loading ? (
-          <div className="bg-white rounded-3xl p-12 flex flex-col items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div><p className="text-slate-500 font-medium mt-4">Loading...</p></div>
-        ) : (
-          <>
-            {/* Mood Tracker */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">💭 How are you feeling?</h2>
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-3">
-                {[1,2,3,4,5,6,7,8,9,10].map(num => (
-                  <button key={num} onClick={() => updateMood(num)} className={`aspect-square rounded-2xl font-bold transition-all border-2 ${routine?.mood === num ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-50 border-transparent text-slate-500 hover:border-indigo-200'}`}>{num}</button>
-                ))}
-              </div>
-              <div className="mt-6 flex justify-between px-2"><span className="text-xs font-bold text-slate-400">Very Low</span><span className="text-xs font-bold text-slate-400">Thriving</span></div>
-            </div>
+        {/* Mood Tracker */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
+          <h2 className="text-xl font-bold text-slate-800 mb-6">💭 How are you feeling?</h2>
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-3">
+            {[1,2,3,4,5,6,7,8,9,10].map(num => (
+              <button key={num} onClick={() => updateMood(num)} className={`aspect-square rounded-2xl font-bold transition-all border-2 ${routine?.mood === num ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-50 border-transparent text-slate-500 hover:border-indigo-200'}`}>{num}</button>
+            ))}
+          </div>
+          <div className="mt-6 flex justify-between px-2"><span className="text-xs font-bold text-slate-400">Very Low</span><span className="text-xs font-bold text-slate-400">Thriving</span></div>
+        </div>
 
-            {/* Checklist */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-xl font-bold text-slate-800">✨ Self-Care Rituals</h2>
-                <div className="text-right"><p className="text-2xl font-black text-indigo-600">{completedCount}/{totalCount}</p><p className="text-[10px] font-bold text-slate-400 uppercase">Done</p></div>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full mb-8 overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700" style={{ width: `${completionRate}%` }} /></div>
-              <div className="space-y-3">
-                {routine?.items.map((item, idx) => (
-                  <label key={idx} className={`flex items-center p-4 rounded-2xl cursor-pointer transition border-2 ${item.completed ? 'bg-slate-50/50 border-transparent' : 'bg-white border-slate-50 hover:border-indigo-100'}`}>
-                    <input type="checkbox" checked={item.completed} onChange={(e) => updateRoutineItem(idx, e.target.checked)} className="hidden" />
-                    <div className="w-6 h-6 border-2 border-slate-200 rounded-lg flex items-center justify-center mr-4">
-                      {item.completed && <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                    <span className={`flex-1 font-bold ${item.completed ? 'text-slate-300 line-through' : 'text-slate-700'}`}>{item.name}</span>
-                    {item.completed && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Done</span>}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        {/* Checklist */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl font-bold text-slate-800">✨ Self-Care Rituals</h2>
+            <div className="text-right"><p className="text-2xl font-black text-indigo-600">{completedCount}/{totalCount}</p><p className="text-[10px] font-bold text-slate-400 uppercase">Done</p></div>
+          </div>
+          <div className="w-full h-3 bg-slate-100 rounded-full mb-8 overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700" style={{ width: `${completionRate}%` }} /></div>
+          <div className="space-y-3">
+            {routine?.items.map((item, idx) => (
+              <label key={idx} className={`flex items-center p-4 rounded-2xl cursor-pointer transition border-2 ${item.completed ? 'bg-slate-50/50 border-transparent' : 'bg-white border-slate-50 hover:border-indigo-100'}`}>
+                <input type="checkbox" checked={item.completed} onChange={(e) => updateRoutineItem(idx, e.target.checked)} className="hidden" />
+                <div className="w-6 h-6 border-2 border-slate-200 rounded-lg flex items-center justify-center mr-4">
+                  {item.completed && <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                </div>
+                <span className={`flex-1 font-bold ${item.completed ? 'text-slate-300 line-through' : 'text-slate-700'}`}>{item.name}</span>
+                {item.completed && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Done</span>}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
     </PageLayout>
   );

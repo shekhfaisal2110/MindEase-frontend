@@ -3,6 +3,7 @@ import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 import TaskCard from '../components/TaskCard';
 import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -23,14 +24,12 @@ const Dashboard = () => {
       } catch (err) { console.error(err); }
     };
     recordPageView();
-    fetchTasks();
-    fetchTodayRoutine();
+    Promise.all([fetchTasks(), fetchTodayRoutine()]).finally(() => setLoading(false));
   }, []);
 
   const fetchTasks = async () => { 
     try { const res = await api.get('/tasks'); setTasks(res.data); } 
     catch(err) { console.error(err); } 
-    finally { setLoading(false); } 
   };
 
   const fetchTodayRoutine = async () => { 
@@ -113,6 +112,11 @@ const Dashboard = () => {
 
   const displayName = user?.username || 'User';
 
+  // Show loading spinner while initial data is being fetched
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <PageLayout 
       title={`${getGreeting()}, ${displayName}`} 
@@ -183,7 +187,10 @@ const Dashboard = () => {
           {/* Task List */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-800 px-1">Your Focus List</h3>
-            {loading ? <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div> : tasks.length === 0 ? <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-slate-200"><p className="text-slate-400 font-medium italic">No tasks yet. Take it slow.</p></div> : <div className="grid grid-cols-1 gap-4">{tasks.map(task => <TaskCard key={task._id} task={task} onToggleComplete={updateTaskStatus} onDelete={deleteTask} />)}</div>}
+            {tasks.length === 0 ? 
+              <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-slate-200"><p className="text-slate-400 font-medium italic">No tasks yet. Take it slow.</p></div> : 
+              <div className="grid grid-cols-1 gap-4">{tasks.map(task => <TaskCard key={task._id} task={task} onToggleComplete={updateTaskStatus} onDelete={deleteTask} />)}</div>
+            }
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const LettersToSelf = () => {
   const [letters, setLetters] = useState([]);
@@ -93,6 +94,11 @@ const LettersToSelf = () => {
     } catch (err) { console.error(err); }
   };
 
+  // Show full‑page loading spinner while fetching data
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-slate-800">
       <Navbar />
@@ -146,12 +152,7 @@ const LettersToSelf = () => {
             Recent Correspondence
           </h2>
 
-          {loading ? (
-            <div className="flex flex-col items-center py-20 animate-pulse">
-              <div className="w-12 h-12 bg-slate-200 rounded-full mb-4" />
-              <div className="h-4 w-32 bg-slate-200 rounded" />
-            </div>
-          ) : letters.length === 0 ? (
+          {letters.length === 0 ? (
             <div className="bg-white border-2 border-dashed border-slate-200 rounded-[2rem] p-16 text-center">
               <p className="text-slate-400 font-medium">Your mailbox is currently empty.</p>
             </div>

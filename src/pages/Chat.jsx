@@ -3,6 +3,7 @@ import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 import { useAuth } from '../context/AuthContext';
 import MessageBubble from '../components/MessageBubble';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Chat = () => {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ const Chat = () => {
         setAdminId(res.data.id);
       } catch (err) {
         console.error('Failed to fetch admin:', err);
+        setLoading(false);
       }
     };
     getAdmin();
@@ -92,6 +94,11 @@ const Chat = () => {
     setMessages(prev => prev.filter(msg => msg._id !== messageId));
   };
 
+  // Show loading spinner while fetching admin or messages
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <PageLayout title="Support Chat" subtitle="Talk to our admin for help or guidance.">
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[70vh]">
@@ -101,9 +108,7 @@ const Chat = () => {
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {loading ? (
-            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div></div>
-          ) : messages.length === 0 ? (
+          {messages.length === 0 ? (
             <div className="text-center py-10 text-slate-400">No messages yet. Start a conversation.</div>
           ) : (
             messages.map((msg) => (

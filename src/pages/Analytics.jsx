@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Analytics = () => {
   const [history, setHistory] = useState([]);
@@ -84,20 +85,12 @@ const Analytics = () => {
     value
   }));
 
+  // Show LoadingSpinner during initial load
   if (loading && !refreshing) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="mt-4 text-slate-500">Loading your activity data...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
+  // Show error state if needed (with retry button)
   if (error && !refreshing) {
     return (
       <div className="min-h-screen bg-gray-50">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const ReactResponse = () => {
   const [entries, setEntries] = useState([]);
@@ -197,6 +198,11 @@ const ReactResponse = () => {
     return days;
   };
 
+  // Show full‑page loading spinner while fetching initial data
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
@@ -313,9 +319,7 @@ const ReactResponse = () => {
             {/* List Section */}
             <div className="space-y-4 pb-10">
               <h2 className="text-xl font-black text-slate-800 ml-2">Recent Timeline</h2>
-              {loading ? (
-                <div className="flex justify-center py-10"><div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>
-              ) : entries.length === 0 ? (
+              {entries.length === 0 ? (
                 <div className="bg-white rounded-3xl p-10 text-center border border-dashed border-slate-200">
                   <p className="text-slate-400 font-medium">The path to mindfulness starts with the first log.</p>
                 </div>
