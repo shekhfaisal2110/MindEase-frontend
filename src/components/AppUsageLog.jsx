@@ -1,17 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 
 const AppUsageLog = ({ selectedDate, onUpdate }) => {
   const [appUsages, setAppUsages] = useState([]);
-  const [newApp, setNewApp] = useState({ appName: '', minutes: '' });
+  const [newAppName, setNewAppName] = useState('');
+  const [newMinutes, setNewMinutes] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingMinutes, setEditingMinutes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deviceTotal, setDeviceTotal] = useState(0);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredApps, setFilteredApps] = useState([]);
+  const minutesRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
+    fetchDeviceUsage();
     fetchAppUsages();
+    fetchDistinctApps();
   }, [selectedDate]);
+
+  const fetchDeviceUsage = async () => {
+    try {
+      const res = await api.get(`/usage/device/${selectedDate}`);
+      setDeviceTotal(res.data.totalMinutes || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchAppUsages = async () => {
     setLoading(true);
@@ -22,18 +41,51 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
     finally { setLoading(false); }
   };
 
+  const fetchDistinctApps = async () => {
+    try {
+      const res = await api.get('/usage/apps/distinct');
+      setSuggestions(res.data);
+      setFilteredApps(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const checkAndUpdateDevice = async (newTotalAppMinutes, oldTotal = null) => {
+    const currentTotal = oldTotal !== null ? deviceTotal - oldTotal + newTotalAppMinutes : deviceTotal;
+    if (newTotalAppMinutes > currentTotal) {
+      const userConfirmed = window.confirm(
+        `Total app usage (${formatDuration(newTotalAppMinutes)}) exceeds device time (${formatDuration(currentTotal)}).\nUpdate device time to match app total?`
+      );
+      if (userConfirmed) {
+        await api.post('/usage/device', { date: selectedDate, totalMinutes: newTotalAppMinutes });
+        await fetchDeviceUsage();
+        if (onUpdate) onUpdate();
+        return true;
+      }
+      return false;
+    }
+    return true;
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!newApp.appName || !newApp.minutes) return;
+    if (!newAppName || !newMinutes) return;
+    const minutes = parseInt(newMinutes);
+    const newTotal = appUsages.reduce((sum, a) => sum + a.minutes, 0) + minutes;
+    const canProceed = await checkAndUpdateDevice(newTotal);
+    if (!canProceed) return;
+
     setSaving(true);
     try {
       await api.post('/usage/app', {
         date: selectedDate,
-        appName: newApp.appName,
-        minutes: parseInt(newApp.minutes)
+        appName: newAppName,
+        minutes: minutes
       });
-      setNewApp({ appName: '', minutes: '' });
-      fetchAppUsages();
+      setNewAppName('');
+      setNewMinutes('');
+      await fetchAppUsages();
+      await fetchDeviceUsage();
+      await fetchDistinctApps();
       if (onUpdate) onUpdate();
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
@@ -46,16 +98,23 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
 
   const saveEdit = async (id) => {
     if (editingMinutes === undefined) return;
+    const oldMinutes = appUsages.find(u => u._id === id).minutes;
+    const newMinutesVal = parseInt(editingMinutes);
+    const newTotal = appUsages.reduce((sum, a) => sum + a.minutes, 0) - oldMinutes + newMinutesVal;
+    const canProceed = await checkAndUpdateDevice(newTotal, oldMinutes);
+    if (!canProceed) return;
+
     setSaving(true);
     try {
       await api.post('/usage/app', {
         date: selectedDate,
         appName: appUsages.find(u => u._id === id).appName,
-        minutes: parseInt(editingMinutes)
+        minutes: newMinutesVal
       });
       setEditingId(null);
       setEditingMinutes('');
-      fetchAppUsages();
+      await fetchAppUsages();
+      await fetchDeviceUsage();
       if (onUpdate) onUpdate();
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
@@ -63,9 +122,13 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
 
   const deleteAppUsage = async (id) => {
     if (!window.confirm('Delete this entry?')) return;
+    const toDelete = appUsages.find(u => u._id === id);
+    const newTotal = appUsages.reduce((sum, a) => sum + a.minutes, 0) - toDelete.minutes;
+    await checkAndUpdateDevice(newTotal, toDelete.minutes);
     try {
       await api.delete(`/usage/app/${id}`);
-      fetchAppUsages();
+      await fetchAppUsages();
+      await fetchDeviceUsage();
       if (onUpdate) onUpdate();
     } catch (err) { console.error(err); }
   };
@@ -78,11 +141,44 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
     return `${hrs}h ${mins}m`;
   };
 
-  // Calculate total minutes from all apps
+  const formatTime = (timestamp) => {
+    if (!timestamp) return null;
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const totalMinutes = appUsages.reduce((sum, app) => sum + app.minutes, 0);
   const totalFormatted = formatDuration(totalMinutes);
+  const isExceeding = totalMinutes > deviceTotal;
 
-  // Skeleton loader
+  const handleAppNameChange = (e) => {
+    const value = e.target.value;
+    setNewAppName(value);
+    if (value.trim() === '') {
+      setShowSuggestions(false);
+      setFilteredApps(suggestions);
+    } else {
+      const filtered = suggestions.filter(app =>
+        app.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredApps(filtered);
+      setShowSuggestions(true);
+    }
+  };
+
+  const selectSuggestion = (appName) => {
+    setNewAppName(appName);
+    setShowSuggestions(false);
+    minutesRef.current?.focus();
+  };
+
+  const handleSearch = (e) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
+    setFilteredApps(suggestions.filter(app => app.toLowerCase().includes(term)));
+  };
+
+  const shouldShowSearch = suggestions.length >= 20;
+
   if (loading) {
     return (
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
@@ -108,33 +204,60 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
           <span className="text-2xl">📱</span> App Usage
         </h2>
         {appUsages.length > 0 && (
-          <div className="text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full font-bold inline-flex items-center gap-2 self-start sm:self-auto">
+          <div className={`text-sm px-4 py-2 rounded-full font-bold inline-flex items-center gap-2 self-start sm:self-auto ${isExceeding ? 'bg-amber-100 text-amber-700' : 'bg-indigo-50 text-indigo-700'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Total: {totalFormatted}
+            {isExceeding && <span className="text-xs ml-1">(exceeds device time)</span>}
           </div>
         )}
       </div>
 
-      {/* Add Form */}
+      {/* Add Form with Auto‑suggestions */}
       <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 mb-8">
-        <div className="flex-1">
-          <label className="sr-only">App Name</label>
+        <div className="flex-1 relative">
           <input
+            ref={inputRef}
             type="text"
             placeholder="App name (e.g., Instagram)"
-            value={newApp.appName}
-            onChange={e => setNewApp({ ...newApp, appName: e.target.value })}
+            value={newAppName}
+            onChange={handleAppNameChange}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
             required
+            autoComplete="off"
           />
+          {showSuggestions && filteredApps.length > 0 && (
+            <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              {filteredApps.map(app => (
+                <button
+                  key={app}
+                  type="button"
+                  onClick={() => selectSuggestion(app)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-indigo-50 transition first:rounded-t-xl last:rounded-b-xl"
+                >
+                  {app}
+                </button>
+              ))}
+              {!suggestions.includes(newAppName) && newAppName.trim() !== '' && (
+                <button
+                  type="button"
+                  onClick={() => selectSuggestion(newAppName)}
+                  className="w-full text-left px-4 py-2 text-sm text-indigo-600 font-medium border-t border-slate-100 hover:bg-indigo-50 transition rounded-b-xl"
+                >
+                  + Add "{newAppName.trim()}"
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="w-full sm:w-32">
-          <label className="sr-only">Minutes</label>
           <input
+            ref={minutesRef}
             type="number"
             placeholder="Minutes"
-            value={newApp.minutes}
-            onChange={e => setNewApp({ ...newApp, minutes: e.target.value })}
+            value={newMinutes}
+            onChange={e => setNewMinutes(e.target.value)}
             className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
             required
           />
@@ -155,6 +278,20 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
         </button>
       </form>
 
+      {/* Search bar for large app list */}
+      {shouldShowSearch && (
+        <div className="mb-6">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Search Apps</label>
+          <input
+            type="text"
+            placeholder="Type to filter..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+          />
+        </div>
+      )}
+
       {/* Empty State */}
       {appUsages.length === 0 ? (
         <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -164,7 +301,6 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Usage List */}
           <div className="space-y-3">
             {appUsages.map((usage, idx) => {
               const percentage = totalMinutes > 0 ? (usage.minutes / totalMinutes) * 100 : 0;
@@ -175,7 +311,6 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   {editingId === usage._id ? (
-                    // Edit Mode
                     <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1">
@@ -205,7 +340,6 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
                       </div>
                     </div>
                   ) : (
-                    // Normal View
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -213,8 +347,13 @@ const AppUsageLog = ({ selectedDate, onUpdate }) => {
                           <span className="text-sm text-slate-500 bg-white px-2 py-0.5 rounded-full">
                             {formatDuration(usage.minutes)}
                           </span>
+                          {usage.createdAt && (
+                            <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto sm:ml-0">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              {formatTime(usage.createdAt)}
+                            </span>
+                          )}
                         </div>
-                        {/* Progress bar */}
                         <div className="mt-2">
                           <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
                             <span>Usage share</span>

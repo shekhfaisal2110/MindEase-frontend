@@ -24,6 +24,9 @@ const AdminChat = lazy(() => import('./pages/AdminChat'));
 const TimeDashboard = lazy(() => import('./pages/TimeDashboard'));
 const DeviceUsageDashboard = lazy(() => import('./pages/DeviceUsageDashboard'));
 const WellbeingDashboard = lazy(() => import('./pages/WellbeingDashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Badges = lazy(() => import('./pages/Badges'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 
 function App() {
   return (
@@ -52,6 +55,9 @@ function App() {
             <Route path="/time-dashboard" element={<PrivateRoute><TimeDashboard /></PrivateRoute>} />
             <Route path="/device-usage" element={<PrivateRoute><DeviceUsageDashboard /></PrivateRoute>} />
             <Route path="/wellbeing" element={<PrivateRoute><WellbeingDashboard /></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+            <Route path="/badges" element={<PrivateRoute><Badges /></PrivateRoute>} />
+            <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
             
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>

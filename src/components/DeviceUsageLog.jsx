@@ -6,6 +6,7 @@ const DeviceUsageLog = ({ selectedDate, onUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     fetchUsage();
@@ -17,6 +18,7 @@ const DeviceUsageLog = ({ selectedDate, onUpdate }) => {
     try {
       const res = await api.get(`/usage/device/${selectedDate}`);
       setTotalMinutes(res.data.totalMinutes || '');
+      setLastUpdated(res.data.updatedAt || null);
     } catch (err) {
       console.error(err);
       setError('Failed to load data. Please refresh.');
@@ -34,9 +36,9 @@ const DeviceUsageLog = ({ selectedDate, onUpdate }) => {
     setSaving(true);
     setError('');
     try {
-      await api.post('/usage/device', { date: selectedDate, totalMinutes: parseInt(totalMinutes) });
+      const res = await api.post('/usage/device', { date: selectedDate, totalMinutes: parseInt(totalMinutes) });
+      setLastUpdated(res.data.updatedAt);
       if (onUpdate) onUpdate();
-      // Success feedback (optional – could show a toast instead of alert)
       alert('✅ Device usage saved!');
     } catch (err) {
       console.error(err);
@@ -52,6 +54,11 @@ const DeviceUsageLog = ({ selectedDate, onUpdate }) => {
     if (hrs === 0) return `${mins} min`;
     if (mins === 0) return `${hrs} hr`;
     return `${hrs} hr ${mins} min`;
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return null;
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -82,6 +89,12 @@ const DeviceUsageLog = ({ selectedDate, onUpdate }) => {
             {totalMinutes > 0 && (
               <p className="text-xs text-slate-400 mt-1">
                 ≈ {formatMinutes(parseInt(totalMinutes))}
+              </p>
+            )}
+            {lastUpdated && (
+              <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Last saved: {formatTime(lastUpdated)}
               </p>
             )}
           </div>

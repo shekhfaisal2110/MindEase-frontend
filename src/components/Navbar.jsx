@@ -100,11 +100,21 @@ const Navbar = () => {
     },
     {
       label: "Insights",
-      links: [{ to: "/analytics", label: "Analytics" }],
+      links: [
+        { to: "/analytics", label: "Analytics" },
+        { to: "/badges", label: "Badges" },  
+        { to: "/leaderboard", label: "Leaderboard" },
+      ],
     },
     {
       label: "Support",
       links: [{ to: "/chat", label: "Support" }],
+    },
+    {
+      label: "Account",
+      links: [
+        { to: "/profile", label: "Profile" },
+      ],
     },
   ];
 
