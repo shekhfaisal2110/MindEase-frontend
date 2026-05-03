@@ -33,12 +33,14 @@ const TherapyExercises = () => {
   }, []);
 
   const fetchExercises = async () => {
-    try {
-      const res = await api.get('/therapy');
-      setExercises(res.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+  try {
+    const res = await api.get('/therapy');
+    // Extract the exercises array (pagination wrapper or direct array)
+    const exercisesArray = res.data.exercises || res.data;
+    setExercises(exercisesArray);
+  } catch (err) { console.error(err); }
+  finally { setLoading(false); }
+};
 
   const fetchStats = async () => {
     try {

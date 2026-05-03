@@ -33,7 +33,9 @@ const Chat = () => {
     if (!adminId) return;
     try {
       const res = await api.get(`/messages/conversation/${adminId}`);
-      setMessages(res.data);
+      // Extract messages array from paginated response or direct array
+      const messagesData = res.data.messages || res.data;
+      setMessages(Array.isArray(messagesData) ? messagesData : []);
       await api.post('/messages/mark-read', { otherUserId: adminId });
     } catch (err) {
       console.error(err);
@@ -94,10 +96,7 @@ const Chat = () => {
     setMessages(prev => prev.filter(msg => msg._id !== messageId));
   };
 
-  // Show loading spinner while fetching admin or messages
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  if (loading) return <LoadingSpinner />;
 
   return (
     <PageLayout title="Support Chat" subtitle="Talk to our admin for help or guidance.">
@@ -115,7 +114,7 @@ const Chat = () => {
               <MessageBubble
                 key={msg._id}
                 message={msg}
-                isMyMessage={msg.sender._id === user?.id}
+                isMyMessage={msg.sender?._id === user?.id}
                 onMessageUpdated={handleMessageUpdated}
                 onMessageDeleted={handleMessageDeleted}
               />

@@ -41,11 +41,6 @@ const Login = () => {
     try {
       const res = await api.post('/auth/refresh-token', { email: savedEmail, refreshToken });
       const { accessToken } = res.data;
-      // Fetch user info – we need user details; add a /auth/me endpoint or embed in refresh response.
-      // For simplicity, we call /auth/login-history which requires auth, so we can extract user from token? 
-      // Better: modify refresh endpoint to return user object as well.
-      // We'll assume refresh returns accessToken, then we can get user from stored data or make another call.
-      // Simpler: store user data alongside refresh token.
       const storedUser = localStorage.getItem(`user_${savedEmail}`);
       if (storedUser) {
         const user = JSON.parse(storedUser);

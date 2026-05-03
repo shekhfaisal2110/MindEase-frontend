@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import PageLayout from '../components/PageLayout';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { Link } from 'react-router-dom';
 
 const Badges = () => {
   const { user } = useAuth();
@@ -24,19 +25,11 @@ const Badges = () => {
   });
 
   const badgeCategories = [
-    { id: 'streak', title: 'Streak Badges', icon: '🔥', color: 'orange', base: 5, inc: 5, key: 'streak' },
     { id: 'points', title: 'Points Badges', icon: '🏆', color: 'indigo', base: 100, inc: 100, key: 'totalPoints' },
+    { id: 'streak', title: 'Streak Badges', icon: '🔥', color: 'orange', base: 5, inc: 5, key: 'streak' },
     { id: 'totalActivities', title: 'Activities Badges', icon: '📝', color: 'emerald', base: 50, inc: 50, key: 'totalActivities' },
     { id: 'activeDays', title: 'Active Days Badges', icon: '📅', color: 'purple', base: 10, inc: 10, key: 'activeDays' },
-    { id: 'gratitude', title: 'Gratitude Badges', icon: '🙏', color: 'amber', base: 10, inc: 10, key: 'gratitude' },
-    { id: 'affirmations', title: 'Affirmation Badges', icon: '💬', color: 'blue', base: 10, inc: 10, key: 'affirmations' },
-    { id: 'therapy', title: 'Growth & Healing Badges', icon: '🧘', color: 'teal', base: 10, inc: 10, key: 'therapy' },
-    { id: 'letters', title: 'Letters to Self Badges', icon: '✉️', color: 'rose', base: 5, inc: 5, key: 'letters' },
-    { id: 'emotionalCheckIns', title: 'Check‑In Badges', icon: '💭', color: 'cyan', base: 10, inc: 10, key: 'emotionalCheckIns' },
-    { id: 'hourlyEmotions', title: 'Hourly Emotion Badges', icon: '⏰', color: 'lime', base: 20, inc: 20, key: 'hourlyEmotions' },
     { id: 'dailyTaskCompletions', title: 'Daily Tasks Badges', icon: '✅', color: 'green', base: 10, inc: 10, key: 'dailyTaskCompletions' },
-    { id: 'ikigaiItems', title: 'Ikigai Items Badges', icon: '🎯', color: 'pink', base: 5, inc: 5, key: 'ikigaiItems' },
-    { id: 'reactResponseEntries', title: 'React vs Response Badges', icon: '⚡', color: 'yellow', base: 10, inc: 10, key: 'reactResponseEntries' },
   ];
 
   const getGradientColor = (color) => {
@@ -70,7 +63,6 @@ const Badges = () => {
         progressRes.data.metrics.lettersToSelf;
       const activeDays = activeDaysRes.data.activeDays;
 
-      // Individual module counts
       const [gratitudeRes, affirmationsRes, therapyRes, lettersRes, emotionalRes, hourlyRes, reactRes, ikigaiRes] = await Promise.all([
         api.get('/gratitude').catch(() => ({ data: [] })),
         api.get('/affirmations').catch(() => ({ data: [] })),
@@ -82,10 +74,7 @@ const Badges = () => {
         api.get('/ikigai').catch(() => ({ data: { love: [], skill: [], worldNeed: [], earn: [] } })),
       ]);
 
-      // ✅ Daily tasks: each completion adds 3 points to breakdown.dailyTask, so divide by 3
       const dailyTaskCompletions = Math.floor((breakdownRes.data?.dailyTask || 0) / 3);
-      console.log('✅ Daily tasks completions (from activity points):', dailyTaskCompletions);
-
       const reactResponseEntries = reactRes.data.length;
       const ikigaiData = ikigaiRes.data;
       const ikigaiItems = (ikigaiData.love?.length || 0) +
@@ -135,6 +124,27 @@ const Badges = () => {
 
   return (
     <PageLayout title="Achievement Badges" subtitle="Every milestone celebrates your progress.">
+      {/* Monthly Reset Note */}
+      <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100 shadow-sm">
+  <div className="flex items-start gap-3">
+    <div className="text-2xl">📅</div>
+    <div>
+      <h3 className="font-bold text-slate-800">Monthly Badge Reset</h3>
+      <p className="text-sm text-slate-600 mt-1">
+        <strong>All badges reset at the beginning of each month.</strong> Your progress starts fresh every month, 
+        giving you a new opportunity to challenge yourself and earn achievements again.
+      </p>
+      <p className="text-xs text-slate-500 mt-2">
+        ⚡ Tip: Use the{' '}
+        <Link to="/export" className="text-indigo-600 font-bold underline hover:text-indigo-800">
+          Export Report
+        </Link>{' '}
+        page to download a PDF/CSV of your current month's performance before it resets!
+      </p>
+    </div>
+  </div>
+</div>
+
       <div className="max-w-7xl mx-auto space-y-12">
         {badgeCategories.map((category) => {
           const currentValue = badgeValues[category.key];

@@ -36,12 +36,14 @@ const ReactResponse = () => {
   }, [currentYear, currentMonth]);
 
   const fetchEntries = async () => {
-    try {
-      const res = await api.get('/react-response');
-      setEntries(res.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+  try {
+    const res = await api.get('/react-response');
+    // If the response has an `entries` field (paginated), use it; otherwise assume it's the array.
+    const entriesArray = res.data.entries || res.data;
+    setEntries(entriesArray);
+  } catch (err) { console.error(err); }
+  finally { setLoading(false); }
+};
 
   const fetchMonthlySummary = async (year, month) => {
     try {

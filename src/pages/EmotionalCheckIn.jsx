@@ -35,13 +35,17 @@ const EmotionalCheckIn = () => {
     fetchActivities();
   }, []);
 
-  const fetchActivities = async () => {
-    try {
-      const res = await api.get('/emotional');
-      setActivities(res.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+  // EmotionalCheckIn.jsx
+const fetchActivities = async () => {
+  try {
+    const res = await api.get('/emotional?limit=100'); // ask for many
+    // If the response is an object with 'activities' field, use that.
+    const data = res.data;
+    const activitiesArray = Array.isArray(data) ? data : (data.activities || []);
+    setActivities(activitiesArray);
+  } catch (err) { console.error(err); }
+  finally { setLoading(false); }
+};
 
   const addCheckIn = async (e) => {
     e.preventDefault();

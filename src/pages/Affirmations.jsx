@@ -29,8 +29,10 @@ const Affirmations = () => {
   const fetchAffirmations = async () => {
   try {
     const res = await api.get('/affirmations');
+    // ✅ Extract the array from the response object
+    const affirmationsArray = res.data.affirmations || [];
     // Sort by updatedAt descending (most recent first)
-    const sorted = res.data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    const sorted = affirmationsArray.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     setAffirmations(sorted);
 
     // Award points based on total affirmations / 2, but only once per day

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import NotificationPanel from './NotificationPanel';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -10,10 +12,10 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // If not logged in, don't render navbar
-  if (!user) return null;
-
+  // ✅ All hooks are called unconditionally before any early return
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
@@ -27,6 +29,26 @@ const Navbar = () => {
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
   }, []);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications/unread-count');
+      setUnreadCount(res.data.count);
+    } catch (err) {
+      console.error('Failed to fetch unread count:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchUnreadCount]);
+
+  // ✅ Now it's safe to return early
+  if (!user) return null;
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -64,73 +86,86 @@ const Navbar = () => {
     setTimeout(() => navigate('/dashboard'), 50);
   };
 
-  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
 
-  // Dropdown structure – groups of links
-  const navGroups = [
-    {
-      label: "Dashboard",
-      links: [{ to: "/dashboard", label: "Dashboard" }],
-    },
-    {
-      label: "Emotional Wellness",
-      links: [
-        { to: "/hourly-emotion", label: "Hourly Emotions" },
-        { to: "/emotional", label: "Emotions" },
-        { to: "/react-response", label: "React vs Response" },
-      ],
-    },
-    {
-      label: "Growth Tools",
-      links: [
-        { to: "/affirmations", label: "Affirmations" },
-        { to: "/therapy", label: "Therapy" },
-        { to: "/letters", label: "Letters" },
-        { to: "/ikigai", label: "Ikigai" },
-      ],
-    },
-    {
-      label: "Daily Tracking",
-      links: [
-        { to: "/gratitude", label: "Gratitude" },
-        { to: "/dailytracker", label: "Daily Tracker" },
-        { to: "/time-dashboard", label: "Time with Loved Ones" },
-        { to: "/device-usage", label: "Digital Wellbeing" },
-      ],
-    },
-    {
-      label: "Insights",
-      links: [
-        { to: "/analytics", label: "Analytics" },
-        { to: "/badges", label: "Badges" },  
-        { to: "/leaderboard", label: "Leaderboard" },
-      ],
-    },
-    {
-      label: "Support",
-      links: [{ to: "/chat", label: "Support" }],
-    },
-    {
-      label: "Account",
-      links: [
-        { to: "/profile", label: "Profile" },
-      ],
-    },
-  ];
-
-  // Admin only group
-  if (isAdmin) {
-    navGroups.push({
-      label: "Admin",
-      links: [{ to: "/admin-chat", label: "Admin Chat" }],
-    });
-  }
+  // Navigation groups
+ const navGroups = [
+  {
+    label: "✨ Dashboard",
+    links: [{ to: "/dashboard", label: "Overview" }],
+  },
+  {
+    label: "🧠 Emotional Wellness",
+    links: [
+      { to: "/hourly-emotion", label: "Hourly Emotions" },
+      { to: "/emotional", label: "Daily Check‑in" },
+      { to: "/react-response", label: "React vs Response" },
+    ],
+  },
+  {
+    label: "🌱 Growth Tools",
+    links: [
+      { to: "/affirmations", label: "Affirmations" },
+      { to: "/therapy", label: "Therapy Exercises" },
+      { to: "/letters", label: "Letters to Self" },
+      { to: "/ikigai", label: "Ikigai (Purpose)" },
+    ],
+  },
+  {
+    label: "📊 Daily Tracking",
+    links: [
+      { to: "/gratitude", label: "Gratitude Journal" },
+      { to: "/dailytracker", label: "Habit Tracker" },
+      { to: "/sleep", label: "Sleep Log" },
+      { to: "/time-dashboard", label: "Quality Time" },
+      { to: "/device-usage", label: "Digital Wellbeing" },
+    ],
+  },
+  {
+    label: "📈 Insights & Achievements",
+    links: [
+      { to: "/analytics", label: "Personal Analytics" },
+      { to: "/badges", label: "Achievement Badges" },
+      { to: "/leaderboard", label: "Leaderboard" },
+      { to: "/export", label: "Export Report" },
+    ],
+  },
+  {
+    label: "🧘 Therapeutic Tools",
+    links: [{ to: "/cbt", label: "CBT Thought Record" }],
+  },
+  {
+    label: "💡 Motivation",
+    links: [{ to: "/motivation", label: "Inspiring Thoughts" }],
+  },
+  {
+    label: "🛠️ Support & Resources",
+    links: [
+      { to: "/chat", label: "Live Support" },
+      { to: "/install-guide", label: "Install App" },
+      { to: "/how-to-use", label: "How to Use" },
+    ],
+  },
+  {
+    label: "👥 Community",
+    links: [
+      { to: "/testimonials", label: "Testimonials" },
+      { to: "/feedback-form", label: "Give Feedback" },
+    ],
+  },
+  {
+    label: "⚙️ Account",
+    links: [{ to: "/profile", label: "My Profile" }],
+  },
+  {
+    label: "ℹ️ About",
+    links: [{ to: "/developer", label: "Developer" }],
+  },
+];
 
   const toggleDropdown = (label) => {
     setOpenDropdown(openDropdown === label ? null : label);
   };
 
-  // Close dropdown when a link is clicked
   const handleLinkClick = () => {
     setOpenDropdown(null);
     setIsMenuOpen(false);
@@ -152,49 +187,28 @@ const Navbar = () => {
             <h1 className="text-xl font-extrabold tracking-tight">Mind<span className="text-indigo-200">Ease</span></h1>
           </button>
 
-          {/* Desktop Navigation (Dropdowns) */}
-          <div className="hidden lg:flex items-center space-x-1">
-            {navGroups.map((group) => (
-              <div key={group.label} className="relative group">
-                <button
-                  onClick={() => toggleDropdown(group.label)}
-                  className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:bg-white/10 flex items-center gap-1"
-                >
-                  {group.label}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <div className={`absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-200 z-20 ${
-                  openDropdown === group.label ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'
-                }`}>
-                  {group.links.map((link) => (
-                    <Link
-                      key={link.to}
-                      to={link.to}
-                      onClick={handleLinkClick}
-                      className={`block px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 transition ${
-                        location.pathname === link.to ? 'bg-indigo-50 text-indigo-600 font-semibold' : ''
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Right side: user info + logout + hamburger */}
+          {/* Right side */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowNotifications(true)}
+              className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
             <div className="hidden sm:flex flex-col items-end mr-2">
               <span className="text-[10px] uppercase tracking-widest text-indigo-200 font-bold">Welcome back</span>
               <span className="text-sm font-semibold">{user?.username}</span>
             </div>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors focus:ring-2 focus:ring-white/50 outline-none"
-              aria-label="Toggle menu"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMenuOpen ? 
@@ -207,7 +221,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Mobile menu (full‑screen overlay) */}
+      {/* Mobile menu (same as before) */}
       <div className={`fixed inset-0 z-40 transition-all duration-500 ${isMenuOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}>
         <div className="absolute inset-0 bg-indigo-950/60 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
         <div className={`absolute right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -254,6 +268,8 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
       <div className="h-20" />
     </>
   );

@@ -34,32 +34,54 @@ const DailyTracker = () => {
     fetchAllTracks();
   }, []);
 
-  useEffect(() => { if (viewMode === 'today') fetchDateTrack(selectedDate); }, [selectedDate]);
+  useEffect(() => {
+    if (viewMode === 'today') fetchDateTrack(selectedDate);
+  }, [selectedDate, viewMode]);
 
   const fetchToday = async () => {
-    try { const res = await api.get('/dailytrack/today'); if(res.data) setTrack(res.data); } 
-    catch(err) { console.error(err); }
+    try { 
+      const res = await api.get('/dailytrack/today');
+      // response may be direct track object OR { track: {...} }
+      const trackData = res.data.track || res.data;
+      if (trackData && Object.keys(trackData).length) setTrack(trackData);
+    } catch(err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   const fetchAllTracks = async () => {
     try { 
-      const res = await api.get('/dailytrack/all'); 
-      const map = {}; 
-      res.data.forEach(t => { map[t.date.split('T')[0]] = t; }); 
-      setCalendarData(map); 
-    } catch(err) { console.error(err); }
+      const res = await api.get('/dailytrack/all');
+      let tracks = [];
+      // handle paginated response { tracks: [], pagination: {} } or direct array
+      if (Array.isArray(res.data)) {
+        tracks = res.data;
+      } else if (res.data.tracks && Array.isArray(res.data.tracks)) {
+        tracks = res.data.tracks;
+      }
+      const map = {};
+      tracks.forEach(t => {
+        // date can be string or Date object
+        const dateKey = t.date ? t.date.split('T')[0] : (t.dateStr || '');
+        if (dateKey) map[dateKey] = t;
+      });
+      setCalendarData(map);
+    } catch(err) { console.error('Fetch all tracks error:', err); }
   };
 
   const fetchDateTrack = async (dateStr) => {
     setLoading(true);
     try {
       const res = await api.get(`/dailytrack/date/${dateStr}`);
-      setTrack(res.data || { 
-        silenceCompleted: false, affirmationCompleted: false, happinessCompleted: false, 
-        exerciseCompleted: false, readingCompleted: false, journalingCompleted: false, 
-        affirmationText: '', journalingText: '', notes: '' 
-      });
+      const trackData = res.data.track || res.data;
+      if (trackData && Object.keys(trackData).length) {
+        setTrack(trackData);
+      } else {
+        setTrack({
+          silenceCompleted: false, affirmationCompleted: false, happinessCompleted: false,
+          exerciseCompleted: false, readingCompleted: false, journalingCompleted: false,
+          affirmationText: '', journalingText: '', notes: '',
+        });
+      }
       setConfettiTriggered(false);
     } catch(err) { console.error(err); }
     finally { setLoading(false); }
@@ -129,7 +151,7 @@ const DailyTracker = () => {
     setSaving(true);
     try {
       await api.put(`/dailytrack/date/${selectedDate}`, track);
-      fetchAllTracks();
+      fetchAllTracks();   // refresh calendar data after save
       alert('Progress saved successfully!');
     } catch(err) { alert('Failed to save'); }
     finally { setSaving(false); }
@@ -187,10 +209,7 @@ const DailyTracker = () => {
     return days;
   };
 
-  // Show loading spinner while initial data is being fetched
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  if (loading) return <LoadingSpinner />;
 
   return (
     <PageLayout title="Daily Growth" subtitle="Track your 6 core habits for a balanced mind.">
@@ -227,7 +246,6 @@ const DailyTracker = () => {
         </div>
       ) : (
         <div className="max-w-2xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4">
-          {/* Main Progress Header */}
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 overflow-hidden relative">
             <div className="relative z-10 flex justify-between items-end">
               <div>
@@ -243,7 +261,6 @@ const DailyTracker = () => {
             </div>
           </div>
 
-          {/* Activity Cards */}
           <div className="space-y-3">
             {activities.map(act => (
               <div key={act.key} className={`bg-white rounded-2xl border-2 transition-all duration-300 ${track[act.key] ? 'border-transparent bg-slate-50/50' : 'border-slate-50 hover:border-indigo-100 shadow-sm'}`}>
