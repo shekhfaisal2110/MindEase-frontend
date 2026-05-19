@@ -1,140 +1,12 @@
-// import React, { useEffect, useState } from 'react';
-// import usePWAInstall from '../hooks/usePWAInstall';
-
-// const InstallPWA = () => {
-//   const { isInstallable, isInstalled, isSupported, install, decline } = usePWAInstall();
-//   const [show, setShow] = useState(false);
-//   const [dismissedPermanently, setDismissedPermanently] = useState(false);
-
-//   // Check if user already dismissed the popup (optional, using localStorage)
-//   useEffect(() => {
-//     const dismissed = localStorage.getItem('pwaInstallDismissed');
-//     const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
-//     const day = 24 * 60 * 60 * 1000;
-//     if (dismissedTime && Date.now() - dismissedTime < day) {
-//       setDismissedPermanently(true);
-//     }
-//   }, []);
-
-//   useEffect(() => {
-//     // Only show popup if installable and not already installed and not dismissed
-//     if (isInstallable && !isInstalled && !dismissedPermanently) {
-//       setShow(true);
-//     } else {
-//       setShow(false);
-//     }
-//   }, [isInstallable, isInstalled, dismissedPermanently]);
-
-//   const handleDecline = () => {
-//     setShow(false);
-//     decline(); // clears the deferred prompt and stores dismissal in localStorage
-//   };
-
-//   const handleInstall = async () => {
-//     const success = await install();
-//     if (success) {
-//       setShow(false);
-//     }
-//   };
-
-//   // Don't render anything if no popup needed
-//   if (!show && !(!isSupported && !isInstalled)) return null;
-
-//   // Fallback for unsupported browser (but still show install instructions)
-//   if (!isSupported && !isInstalled) {
-//     return (
-//       <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 p-5 animate-in slide-in-from-bottom-4 duration-300">
-//         <div className="flex items-start gap-4">
-//           <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-//             <span className="text-2xl">🌿</span>
-//           </div>
-//           <div className="flex-1">
-//             <h3 className="font-bold text-slate-800">Install MindEase</h3>
-//             <p className="text-sm text-slate-500 mt-1">
-//               Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> for the best experience.
-//             </p>
-//           </div>
-//           <button
-//             onClick={() => setShow(false)}
-//             className="text-slate-400 hover:text-slate-600"
-//           >
-//             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-//             </svg>
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   // Already installed (optional, you could show a different message)
-//   if (isInstalled) {
-//     return (
-//       <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-green-100 z-50 p-5">
-//         <div className="flex items-center gap-3">
-//           <span className="text-2xl">✅</span>
-//           <p className="text-sm text-slate-600">MindEase is already installed on your device.</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   // Main install popup (when beforeinstallprompt is available)
-//   return (
-//     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-//       <div className="relative p-5">
-//         <button
-//           onClick={handleDecline}
-//           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"
-//         >
-//           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-//           </svg>
-//         </button>
-
-//         <div className="flex items-center gap-4">
-//           <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-//             <span className="text-2xl">🌿</span>
-//           </div>
-//           <div>
-//             <h3 className="text-xl font-black text-slate-800">Install MindEase</h3>
-//             <p className="text-xs text-slate-500">Get our app for a faster, smoother experience</p>
-//           </div>
-//         </div>
-
-//         <div className="flex gap-3 mt-5">
-//           <button
-//             onClick={handleInstall}
-//             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl transition active:scale-95 shadow-md"
-//           >
-//             Install
-//           </button>
-//           <button
-//             onClick={handleDecline}
-//             className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl transition"
-//           >
-//             Maybe later
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default InstallPWA;
-
-
-
-
-
+// src/components/InstallPWA.jsx
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import usePWAInstall from '../hooks/usePWAInstall';
 
-// Memoized close button component to avoid re-renders
 const CloseButton = React.memo(({ onClick }) => (
   <button
     onClick={onClick}
-    className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition touch-manipulation"
+    className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition"
     aria-label="Close"
   >
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +20,7 @@ const InstallPWA = React.memo(() => {
   const [show, setShow] = useState(false);
   const [dismissedPermanently, setDismissedPermanently] = useState(false);
 
-  // Check localStorage once on mount
+  // Check localStorage once
   useEffect(() => {
     const dismissed = localStorage.getItem('pwaInstallDismissed');
     const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
@@ -158,7 +30,7 @@ const InstallPWA = React.memo(() => {
     }
   }, []);
 
-  // Show popup condition
+  // Control visibility
   useEffect(() => {
     if (isInstallable && !isInstalled && !dismissedPermanently) {
       setShow(true);
@@ -169,7 +41,7 @@ const InstallPWA = React.memo(() => {
 
   const handleDecline = useCallback(() => {
     setShow(false);
-    decline();
+    decline(); // stores dismissal time in localStorage
   }, [decline]);
 
   const handleInstall = useCallback(async () => {
@@ -177,81 +49,64 @@ const InstallPWA = React.memo(() => {
     if (success) setShow(false);
   }, [install]);
 
-  // Memoized fallback content for unsupported browser
-  const unsupportedContent = useMemo(() => (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 p-4 sm:p-5 animate-in slide-in-from-bottom-4 duration-300">
-      <div className="flex items-start gap-3 sm:gap-4">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
-          <span className="text-xl sm:text-2xl">🌿</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-slate-800 text-sm sm:text-base">Install MindEase</h3>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Tap <strong className="font-semibold">Share</strong> → <strong className="font-semibold">Add to Home Screen</strong>
-          </p>
-        </div>
-        <CloseButton onClick={() => setShow(false)} />
-      </div>
-    </div>
-  ), []);
+  // Don't render anything if popup is not needed
+  if (!show) return null;
 
-  // Already installed message (optional)
-  const installedContent = useMemo(() => (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-green-100 z-50 p-4 sm:p-5">
-      <div className="flex items-center gap-3">
-        <span className="text-xl sm:text-2xl">✅</span>
-        <p className="text-xs sm:text-sm text-slate-600">MindEase is already installed.</p>
+  // Unsupported browser fallback (manual instructions)
+  if (!isSupported && !isInstalled) {
+    const fallbackContent = (
+      <div className="fixed bottom-4 right-4 left-4 md:left-auto md:bottom-6 md:right-6 md:max-w-sm bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 p-4 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-xl">🌿</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-800">Install MindEase</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Tap <strong>Share</strong> → <strong>Add to Home Screen</strong>
+            </p>
+          </div>
+          <CloseButton onClick={() => setShow(false)} />
+        </div>
       </div>
-    </div>
-  ), []);
+    );
+    return createPortal(fallbackContent, document.body);
+  }
 
-  // Main install prompt
-  const installContent = useMemo(() => (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-6 md:max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-      <div className="relative p-4 sm:p-5">
+  // Main install prompt (supported browser)
+  const installContent = (
+    <div className="fixed bottom-4 right-4 left-4 md:left-auto md:bottom-6 md:right-6 md:max-w-sm bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      <div className="relative p-4">
         <CloseButton onClick={handleDecline} />
-        
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-            <span className="text-xl sm:text-2xl">🌿</span>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <span className="text-xl">🌿</span>
           </div>
           <div>
-            <h3 className="text-lg sm:text-xl font-black text-slate-800">Install MindEase</h3>
-            <p className="text-[11px] sm:text-xs text-slate-500">Faster, smoother app experience</p>
+            <h3 className="text-lg font-black text-slate-800">Install MindEase</h3>
+            <p className="text-xs text-slate-500">Faster, smoother app experience</p>
           </div>
         </div>
-
-        <div className="flex gap-3 mt-4 sm:mt-5">
+        <div className="flex gap-3 mt-4">
           <button
             onClick={handleInstall}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 sm:py-2 rounded-xl transition active:scale-95 shadow-md touch-manipulation text-sm sm:text-base"
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl transition active:scale-95 shadow-md"
           >
             Install
           </button>
           <button
             onClick={handleDecline}
-            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 sm:py-2 rounded-xl transition active:scale-95 touch-manipulation text-sm sm:text-base"
+            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl transition"
           >
             Maybe later
           </button>
         </div>
       </div>
     </div>
-  ), [handleInstall, handleDecline]);
+  );
 
-  // Don't render anything if popup not needed
-  if (!show && !(!isSupported && !isInstalled)) return null;
-
-  // Unsupported browser fallback
-  if (!isSupported && !isInstalled) return unsupportedContent;
-
-  // Already installed (optional)
-  if (isInstalled) return installedContent;
-
-  // Main install popup
-  return installContent;
+  return createPortal(installContent, document.body);
 });
 
 InstallPWA.displayName = 'InstallPWA';
-
 export default InstallPWA;

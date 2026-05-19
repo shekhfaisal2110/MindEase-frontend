@@ -1,213 +1,8 @@
-// // src/pages/ExportReport.jsx
-// import React, { useState } from 'react';
-// import api from '../services/api';
-// import Navbar from '../components/Navbar';
-// import LoadingSpinner from '../components/LoadingSpinner';
-
-// const ExportReport = () => {
-//   const [period, setPeriod] = useState('monthly');
-//   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-//   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState(null);
-//   const [success, setSuccess] = useState(false);
-
-//   // Generate years from 2022 to current year + 1
-//   const currentYear = new Date().getFullYear();
-//   const years = Array.from({ length: currentYear - 2022 + 2 }, (_, i) => 2022 + i);
-
-//   const months = [
-//     { value: 1, label: 'January' },
-//     { value: 2, label: 'February' },
-//     { value: 3, label: 'March' },
-//     { value: 4, label: 'April' },
-//     { value: 5, label: 'May' },
-//     { value: 6, label: 'June' },
-//     { value: 7, label: 'July' },
-//     { value: 8, label: 'August' },
-//     { value: 9, label: 'September' },
-//     { value: 10, label: 'October' },
-//     { value: 11, label: 'November' },
-//     { value: 12, label: 'December' },
-//   ];
-
-//   const handleDownload = async () => {
-//     setLoading(true);
-//     setError(null);
-//     setSuccess(false);
-//     try {
-//       let url = `/export/progress?period=${period}`;
-//       if (period === 'monthly') {
-//         url += `&year=${selectedYear}&month=${selectedMonth}`;
-//       } else {
-//         url += `&year=${selectedYear}`;
-//       }
-//       const response = await api.get(url, { responseType: 'blob' });
-//       // Create a download link
-//       const blob = new Blob([response.data], { type: 'application/pdf' });
-//       const link = document.createElement('a');
-//       link.href = URL.createObjectURL(blob);
-//       link.download = `mindEase_${period}_${selectedYear}${period === 'monthly' ? `_${selectedMonth}` : ''}.pdf`;
-//       link.click();
-//       URL.revokeObjectURL(link.href);
-//       setSuccess(true);
-//       setTimeout(() => setSuccess(false), 5000);
-//     } catch (err) {
-//       console.error(err);
-//       setError('Failed to generate report. Please try again later.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading) return <LoadingSpinner />;
-
-//   return (
-//     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-//       <Navbar />
-//       <div className="container mx-auto px-4 py-12 max-w-4xl">
-//         {/* Hero Section */}
-//         <div className="text-center mb-12">
-//           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-//             Your Progress, Unfolded
-//           </h1>
-//           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-//             Download a beautiful PDF report of your wellness journey – including points, activities, sleep, emotions, and more.
-//           </p>
-//         </div>
-
-//         {/* Card */}
-//         <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl shadow-indigo-100/30 border border-white/50 p-8 md:p-10">
-//           <div className="flex flex-col md:flex-row gap-8">
-//             {/* Left: Description */}
-//             <div className="flex-1 space-y-4">
-//               <h2 className="text-2xl font-semibold text-slate-800">What's inside?</h2>
-//               <ul className="space-y-2 text-slate-600">
-//                 <li className="flex items-center gap-2">📊 <span>Total points earned</span></li>
-//                 <li className="flex items-center gap-2">❤️ <span>Gratitude, affirmations, letters count</span></li>
-//                 <li className="flex items-center gap-2">🧠 <span>Emotional trends & most frequent mood</span></li>
-//                 <li className="flex items-center gap-2">😴 <span>Average sleep duration & quality</span></li>
-//                 <li className="flex items-center gap-2">📱 <span>Screen time & top used apps</span></li>
-//                 <li className="flex items-center gap-2">✅ <span>Completed tasks & therapy reps</span></li>
-//               </ul>
-//             </div>
-
-//             {/* Right: Form */}
-//             <div className="flex-1 space-y-6">
-//               <div>
-//                 <label className="text-sm font-medium text-slate-700 block mb-2">Report period</label>
-//                 <div className="flex gap-4">
-//                   <button
-//                     onClick={() => setPeriod('monthly')}
-//                     className={`px-6 py-2 rounded-full font-medium transition-all ${
-//                       period === 'monthly'
-//                         ? 'bg-indigo-600 text-white shadow-md'
-//                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-//                     }`}
-//                   >
-//                     Monthly
-//                   </button>
-//                   <button
-//                     onClick={() => setPeriod('yearly')}
-//                     className={`px-6 py-2 rounded-full font-medium transition-all ${
-//                       period === 'yearly'
-//                         ? 'bg-indigo-600 text-white shadow-md'
-//                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-//                     }`}
-//                   >
-//                     Yearly
-//                   </button>
-//                 </div>
-//               </div>
-
-//               {/* Year Picker */}
-//               <div>
-//                 <label className="text-sm font-medium text-slate-700 block mb-2">Year</label>
-//                 <select
-//                   value={selectedYear}
-//                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-//                   className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-//                 >
-//                   {years.map(year => (
-//                     <option key={year} value={year}>{year}</option>
-//                   ))}
-//                 </select>
-//               </div>
-
-//               {/* Month Picker (only for monthly) */}
-//               {period === 'monthly' && (
-//                 <div>
-//                   <label className="text-sm font-medium text-slate-700 block mb-2">Month</label>
-//                   <select
-//                     value={selectedMonth}
-//                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-//                     className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-//                   >
-//                     {months.map(month => (
-//                       <option key={month.value} value={month.value}>{month.label}</option>
-//                     ))}
-//                   </select>
-//                 </div>
-//               )}
-
-//               {/* Download Button */}
-//               <button
-//                 onClick={handleDownload}
-//                 disabled={loading}
-//                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-//               >
-//                 {loading ? (
-//                   <>
-//                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                     </svg>
-//                     Generating report...
-//                   </>
-//                 ) : (
-//                   <>
-//                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-//                     Download PDF Report
-//                   </>
-//                 )}
-//               </button>
-
-//               {/* Messages */}
-//               {error && (
-//                 <div className="mt-4 p-3 bg-rose-50 text-rose-700 rounded-xl text-sm">
-//                   ⚠️ {error}
-//                 </div>
-//               )}
-//               {success && (
-//                 <div className="mt-4 p-3 bg-emerald-50 text-emerald-700 rounded-xl text-sm">
-//                   ✅ Report downloaded successfully!
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Decorative element */}
-//         <div className="text-center mt-10 text-slate-400 text-sm">
-//           * All data is securely retrieved and never stored on our servers after download.
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ExportReport;
-
-
-
-
-
 // src/pages/ExportReport.jsx
 import React, { useState, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 
-// Helper: generate years array (static, outside component)
 const getYears = () => {
   const currentYear = new Date().getFullYear();
   return Array.from({ length: currentYear - 2022 + 2 }, (_, i) => 2022 + i);
@@ -224,16 +19,17 @@ const ExportReport = React.memo(() => {
   const [period, setPeriod] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
-  const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(false);
+  const [loadingFull, setLoadingFull] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState(null);
 
   const years = useMemo(() => getYears(), []);
 
-  const handleDownload = useCallback(async () => {
-    setLoading(true);
+  const handleDownloadProgress = useCallback(async () => {
+    setLoadingProgress(true);
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
     try {
       let url = `/export/progress?period=${period}`;
       if (period === 'monthly') {
@@ -248,59 +44,88 @@ const ExportReport = React.memo(() => {
       link.download = `mindEase_${period}_${selectedYear}${period === 'monthly' ? `_${selectedMonth}` : ''}.pdf`;
       link.click();
       URL.revokeObjectURL(link.href);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 5000);
+      setSuccess('Progress report downloaded successfully!');
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       console.error(err);
-      setError('Failed to generate report. Please try again later.');
+      setError('Failed to generate progress report. Please try again later.');
     } finally {
-      setLoading(false);
+      setLoadingProgress(false);
     }
   }, [period, selectedYear, selectedMonth]);
 
-  // Memoised period toggle handlers
+  const handleDownloadFull = useCallback(async () => {
+    setLoadingFull(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await api.get('/export/full-report', { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      link.download = `mindEase_full_report_${year}_${month}.pdf`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setSuccess('Full monthly report downloaded successfully!');
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to generate full report. Please try again later.');
+    } finally {
+      setLoadingFull(false);
+    }
+  }, []);
+
   const setMonthly = useCallback(() => setPeriod('monthly'), []);
   const setYearly = useCallback(() => setPeriod('yearly'), []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8 sm:py-12 max-w-4xl">
-        {/* Hero Section – responsive text */}
-        <div className="text-center mb-10 sm:mb-12">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-10 md:py-12 max-w-5xl">
+        {/* Header Section */}
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4 mx-auto">
+            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3 sm:mb-4">
             Your Progress, Unfolded
           </h1>
           <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto px-2">
-            Download a beautiful PDF report of your wellness journey – including points, activities, sleep, emotions, and more.
+            Download a beautifully designed PDF report of your wellness journey – including points, activities, sleep, emotions, and more.
           </p>
         </div>
 
-        {/* Main Card */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl shadow-indigo-100/30 border border-white/50 p-6 sm:p-8 md:p-10 transition-all">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-            {/* Left: Description */}
-            <div className="flex-1 space-y-4">
-              <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">What's inside?</h2>
-              <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
-                <li className="flex items-center gap-2">📊 Total points earned</li>
-                <li className="flex items-center gap-2">❤️ Gratitude, affirmations, letters count</li>
-                <li className="flex items-center gap-2">🧠 Emotional trends & most frequent mood</li>
-                <li className="flex items-center gap-2">😴 Average sleep duration & quality</li>
-                <li className="flex items-center gap-2">📱 Screen time & top used apps</li>
-                <li className="flex items-center gap-2">✅ Completed tasks & therapy reps</li>
+        {/* Progress Report Card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl border border-white/50 p-5 sm:p-6 md:p-8 transition-all hover:shadow-2xl mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            {/* Left side – description */}
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl sm:text-3xl">📊</span>
+                <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">Monthly / Yearly Summary</h2>
+              </div>
+              <ul className="space-y-1.5 text-slate-600 text-sm sm:text-base">
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Total points & active days</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Activity counts (gratitude, therapy, tasks...)</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Emotional trends & sleep averages</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Screen time & top used apps</li>
               </ul>
             </div>
 
-            {/* Right: Form */}
-            <div className="flex-1 space-y-5">
-              {/* Period toggle */}
+            {/* Right side – form */}
+            <div className="flex-1 space-y-4">
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-2">Report period</label>
                 <div className="flex gap-3">
                   <button
                     onClick={setMonthly}
-                    className={`px-5 py-2 rounded-full font-medium transition-all touch-manipulation ${
+                    className={`flex-1 py-2.5 rounded-xl font-semibold transition-all touch-manipulation ${
                       period === 'monthly'
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -310,7 +135,7 @@ const ExportReport = React.memo(() => {
                   </button>
                   <button
                     onClick={setYearly}
-                    className={`px-5 py-2 rounded-full font-medium transition-all touch-manipulation ${
+                    className={`flex-1 py-2.5 rounded-xl font-semibold transition-all touch-manipulation ${
                       period === 'yearly'
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -321,13 +146,12 @@ const ExportReport = React.memo(() => {
                 </div>
               </div>
 
-              {/* Year picker */}
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-2">Year</label>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 >
                   {years.map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -335,14 +159,13 @@ const ExportReport = React.memo(() => {
                 </select>
               </div>
 
-              {/* Month picker (only for monthly) */}
               {period === 'monthly' && (
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-2">Month</label>
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
                   >
                     {months.map(month => (
                       <option key={month.value} value={month.value}>{month.label}</option>
@@ -351,47 +174,91 @@ const ExportReport = React.memo(() => {
                 </div>
               )}
 
-              {/* Download Button with inline loading spinner */}
               <button
-                onClick={handleDownload}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 active:scale-95 touch-manipulation"
+                onClick={handleDownloadProgress}
+                disabled={loadingProgress}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 active:scale-[0.98]"
               >
-                {loading ? (
+                {loadingProgress ? (
                   <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Generating report...
+                    Generating...
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Download PDF Report
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Progress Report
                   </>
                 )}
               </button>
-
-              {/* Status messages */}
-              {error && (
-                <div className="mt-3 p-3 bg-rose-50 text-rose-700 rounded-xl text-sm animate-in fade-in duration-300">
-                  ⚠️ {error}
-                </div>
-              )}
-              {success && (
-                <div className="mt-3 p-3 bg-emerald-50 text-emerald-700 rounded-xl text-sm animate-in fade-in duration-300">
-                  ✅ Report downloaded successfully!
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Footer note */}
-        <div className="text-center mt-8 sm:mt-10 text-slate-400 text-xs sm:text-sm">
-          * All data is securely retrieved and never stored on our servers after download.
+        {/* Full Monthly Report Card – separate, not nested */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl border border-white/50 p-5 sm:p-6 md:p-8 transition-all hover:shadow-2xl">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl sm:text-3xl">📓</span>
+                <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">Full Monthly Report</h2>
+              </div>
+              <ul className="space-y-1.5 text-slate-600 text-sm sm:text-base">
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Every activity logged for the current month</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Daily breakdown (gratitude, emotions, sleep, tasks)</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> Ikigai summary & emotional highlights</li>
+                <li className="flex items-start gap-2"><span className="text-indigo-500">▹</span> In‑depth analysis of your month</li>
+              </ul>
+              <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
+                Always includes the current month (up to today)
+              </p>
+            </div>
+            <div className="flex-1 flex items-center justify-center lg:justify-end">
+              <button
+                onClick={handleDownloadFull}
+                disabled={loadingFull}
+                className="w-full lg:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 active:scale-[0.98]"
+              >
+                {loadingFull ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                    Download Full Report (This Month)
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Error / Success Messages */}
+        {error && (
+          <div className="mt-8 p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-sm animate-in fade-in duration-300 text-center flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mt-8 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-sm animate-in fade-in duration-300 text-center flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+            {success}
+          </div>
+        )}
       </div>
     </div>
   );
